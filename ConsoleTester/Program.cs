@@ -14,30 +14,23 @@ using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Runtime;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace ConsoleTester
 {
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "<Pending>")]
 	class Program
 	{
 		static readonly Lexer _lexer = new Lexer();
 		static unsafe void Main()
 		{
-			Random r = new Random();
-			Span<byte> b = stackalloc byte[32];
-			r.NextBytes(b.Slice(0, 14));
-			UInt128 u = new UInt128(MemoryMarshal.Cast<byte, uint>(b));
-			b.Clear();
-			r.NextBytes(b.Slice(0, 7));
-			Span<uint> cast = MemoryMarshal.Cast<byte, uint>(b);
-			UInt128 v = new UInt128(cast);
-			Console.WriteLine((BigInteger)u);
-			Console.WriteLine(u);
-			int iterations = 200_000_000;
-			long t1 = MethodTiming.TimeMethod(UInt128.Divide, iterations, u, v, out _);
-			Console.WriteLine($"{(double)t1 / iterations}");
-			long t2 = MethodTiming.TimeMethod(BigInteger.Divide, iterations, (BigInteger)u, (BigInteger)v, out _);
-			Console.WriteLine($"{(double)t2 / iterations}");
+			Quadruple a = (Quadruple)12 / 10;
+
+			for (int i = 0; i < 20; ++i)
+				Console.WriteLine(a *= a);
 		}
+
+
 
 		static void LexerTestMain()
 		{

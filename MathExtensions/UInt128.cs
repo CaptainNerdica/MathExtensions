@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace MathExtensions
 {
@@ -20,8 +21,8 @@ namespace MathExtensions
 
 		public static readonly UInt128 MaxValue = new UInt128(uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue);
 		public static readonly UInt128 MinValue = 0;
-		public static readonly UInt256 Zero = 0;
-		public static readonly UInt256 One = 1;
+		public static readonly UInt128 Zero = 0;
+		public static readonly UInt128 One = 1;
 
 		internal bool this[int index]
 		{
@@ -31,9 +32,9 @@ namespace MathExtensions
 				if (index > Bits || index < 0)
 					throw new IndexOutOfRangeException();
 				if (!value)
-					_u[index / 32] = _u[index / 32] & ~BigIntHelpers.IntMasks1Bit[index % 32];
+					_u[index / 32] = _u[index / 32] & ~BigIntHelpers.Int32Masks1Bit[index % 32];
 				else
-					_u[index / 32] = _u[index / 32] | BigIntHelpers.IntMasks1Bit[index % 32];
+					_u[index / 32] = _u[index / 32] | BigIntHelpers.Int32Masks1Bit[index % 32];
 
 			}
 		}
@@ -107,8 +108,16 @@ namespace MathExtensions
 					*--p = (char)(remainder + '0');
 				}
 			}
-			string s = new string(dest.TrimStart('\0'));
+			string s = new string(dest.TrimStart('\0').TrimStart('0'));
 			return s;
+		}
+		internal string ToStringHex()
+		{
+			StringBuilder sb = new StringBuilder();
+			for (int i = 0; i < DWords; ++i)
+				sb.AppendFormat("{0:X8} ", _u[DWords - 1 - i]);
+			//sb.Remove(39, 1);
+			return sb.ToString();
 		}
 
 		private static int GetBitCount(UInt128 value)
@@ -118,6 +127,35 @@ namespace MathExtensions
 					return i + 1;
 			return 1;
 		}
+		internal static int GetHighestBit(UInt128 value)
+		{
+			for (int i = Bits - 1; i >= 0; --i)
+				if (((int)(value._u[i / 32] >> (i % 32)) & 1) == 1)
+					return i;
+			return 0;
+		}
+		internal static int GetLowestBit(UInt128 value)
+		{
+			for (int i = 0; i < Bits; ++i)
+				if (((int)(value._u[i / 32] >> (i % 32)) & 1) == 1)
+					return i;
+			return Bits - 1;
+		}
+
+		public static int LeadingZeroCount(UInt128 value)
+		{
+			if (value == Zero) return Bits;
+			for (int i = Bits - 1; i >= 0; --i)
+			{
+				if (value[i])
+					return i + 1;
+			}
+			return Bits; //should never be reached.
+		}
+
+
+
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static int GetDWordCount(UInt128 value)
 		{
@@ -141,6 +179,8 @@ namespace MathExtensions
 			}
 			return 0;
 		}
+
+		public static UInt128 TwosComplement(UInt128 value) => ~value + 1;
 
 		public static UInt128 Add(UInt128 left, UInt128 right)
 		{
@@ -261,16 +301,28 @@ namespace MathExtensions
 		{
 			if (bits < 0)
 				return ShiftRight(value, -bits);
-			int ls = bits % 32;
-			int rs = 32 - ls;
-			return (bits / 32) switch
+			int ls = bits % 64;
+			int rs = 64 - ls;
+			int b = bits / 64;
+			ulong* u = (ulong*)value._u;
+			if (ls != 0)
 			{
-				0 => new UInt128(value._u[0] << ls, value._u[0] >> rs | value._u[1] << ls, value._u[1] >> rs | value._u[2] << ls, value._u[2] >> rs | value._u[3] << ls),
-				1 => new UInt128(0, value._u[0] << ls, value._u[0] >> rs | value._u[1] << ls, value._u[1] >> rs | value._u[2] << ls),
-				2 => new UInt128(0, 0, value._u[0] << ls, value._u[0] >> rs | value._u[1] << ls),
-				3 => new UInt128(0, 0, 0, value._u[0] << ls),
-				_ => default
-			};
+				return b switch
+				{
+					0 => new UInt128(u[0] << ls, u[0] >> rs | u[1] << ls),
+					1 => new UInt128(0, u[0] << ls),
+					_ => default
+				};
+			}
+			else
+			{
+				return b switch
+				{
+					0 => value,
+					1 => new UInt128(0, u[0]),
+					_ => default
+				};
+			}
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -279,16 +331,28 @@ namespace MathExtensions
 		{
 			if (bits < 0)
 				return ShiftLeft(value, -bits);
-			int rs = bits % 32;
-			int ls = 32 - rs;
-			return (bits / 32) switch
+			int rs = bits % 64;
+			int ls = 64 - rs;
+			int b = bits / 64;
+			ulong* u = (ulong*)value._u;
+			if (rs != 0)
 			{
-				0 => new UInt128(value._u[0] >> rs | value._u[1] << ls, value._u[1] >> rs | value._u[2] << ls, value._u[2] >> rs | value._u[3] << ls, value._u[3] >> rs),
-				1 => new UInt128(value._u[1] >> rs | value._u[2] << ls, value._u[2] >> rs | value._u[3] << ls, value._u[3] >> rs, 0),
-				2 => new UInt128(value._u[2] >> rs | value._u[3] << ls, value._u[3] >> rs, 0, 0),
-				3 => new UInt128(value._u[3] >> rs, 0, 0, 0),
-				_ => default,
-			};
+				return b switch
+				{
+					0 => new UInt128(u[0] >> rs | u[1] << ls, u[1] >> rs),
+					1 => new UInt128(u[1] >> rs, 0),
+					_ => default,
+				};
+			}
+			else
+			{
+				return b switch
+				{
+					0 => value,
+					1 => new UInt128(u[1], 0),
+					_ => default,
+				};
+			}
 		}
 
 		public static UInt128 operator +(UInt128 left, UInt128 right) => Add(left, right);

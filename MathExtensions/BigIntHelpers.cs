@@ -10,15 +10,65 @@ namespace MathExtensions
 {
 	internal static class BigIntHelpers
 	{
-		internal static readonly uint[] IntMasks1Bit = new uint[32];
-		internal static ulong[] LongMasks1Bit = new ulong[64];
+		internal static readonly uint[] Int32Masks1Bit = new uint[32];
+		internal static readonly ulong[] Int64Masks1Bit = new ulong[64];
+		internal static readonly UInt128[] Int128Masks1Bit = new UInt128[128];
+		internal static readonly UInt256[] Int256Masks1Bit = new UInt256[256];
 
 		static BigIntHelpers()
 		{
-			for (int i = 0; i < IntMasks1Bit.Length; ++i)
-				IntMasks1Bit[i] = 1U << i;
-			for (int i = 0; i < LongMasks1Bit.Length; ++i)
-				LongMasks1Bit[i] = 1UL << i;
+			for (int i = 0; i < Int32Masks1Bit.Length; ++i)
+				Int32Masks1Bit[i] = 1U << i;
+			for (int i = 0; i < Int64Masks1Bit.Length; ++i)
+				Int64Masks1Bit[i] = 1UL << i;
+			for (int i = 0; i < Int128Masks1Bit.Length; ++i)
+				Int128Masks1Bit[i] = (UInt128)1 << i;
+			for (int i = 0; i < Int256Masks1Bit.Length; ++i)
+				Int256Masks1Bit[i] = (UInt256)1 << i;
+		}
+
+		internal static int GetHighestBit(ulong value)
+		{
+			for (int i = sizeof(long) * 8 - 1; i >= 0; --i)
+				if ((value & Int64Masks1Bit[i]) != 0)
+					return i;
+			return 0;
+		}
+		internal static int GetHighestBit(uint value)
+		{
+			for (int i = sizeof(int) * 8 - 1; i >= 0; --i)
+				if ((value & Int32Masks1Bit[i]) != 0)
+					return i;
+			return 0;
+		}
+
+		public static UInt128 IntPower(UInt128 x, int power)
+		{
+			if (power == 0) return 1;
+			if (power == 1) return x;
+
+			int n = 31;
+			while ((power <<= 1) >= 0) n--;
+
+			UInt128 tmp = x;
+			while (--n > 0)
+				tmp = tmp * tmp *
+					 (((power <<= 1) < 0) ? x : 1);
+			return tmp;
+		}
+		public static UInt256 IntPower(UInt256 x, int power)
+		{
+			if (power == 0) return 1;
+			if (power == 1) return x;
+
+			int n = 31;
+			while ((power <<= 1) >= 0) n--;
+
+			UInt256 tmp = x;
+			while (--n > 0)
+				tmp = tmp * tmp *
+					 (((power <<= 1) < 0) ? x : 1);
+			return tmp;
 		}
 
 		private static unsafe uint AddDivisor(uint* left, int leftLength,

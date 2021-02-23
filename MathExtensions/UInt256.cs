@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace MathExtensions
 {
@@ -18,7 +19,7 @@ namespace MathExtensions
 		internal const int QWords = 4;
 		internal fixed uint _u[DWords];
 
-		public static readonly UInt256 MaxValue = new UInt256(uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue);
+		public static readonly UInt256 MaxValue = new UInt256(ulong.MaxValue, ulong.MaxValue, ulong.MaxValue, ulong.MaxValue);
 		public static readonly UInt256 MinValue = 0;
 		public static readonly UInt256 Zero = 0;
 		public static readonly UInt256 One = 1;
@@ -31,9 +32,9 @@ namespace MathExtensions
 				if (index > Bits || index < 0)
 					throw new IndexOutOfRangeException();
 				if (!value)
-					_u[index / 32] = _u[index / 32] & ~BigIntHelpers.IntMasks1Bit[index % 32];
+					_u[index / 32] = _u[index / 32] & ~BigIntHelpers.Int32Masks1Bit[index % 32];
 				else
-					_u[index / 32] = _u[index / 32] | BigIntHelpers.IntMasks1Bit[index % 32];
+					_u[index / 32] = _u[index / 32] | BigIntHelpers.Int32Masks1Bit[index % 32];
 			}
 		}
 
@@ -62,6 +63,18 @@ namespace MathExtensions
 			}
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public UInt256(UInt128 low, UInt128 high)
+		{
+			fixed (void* b = _u)
+			{
+				ulong* p = (ulong*)b;
+				p[0] = ((ulong*)low._u)[0];
+				p[1] = ((ulong*)low._u)[1];
+				p[2] = ((ulong*)high._u)[0];
+				p[3] = ((ulong*)high._u)[1];
+			}
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public UInt256(ReadOnlySpan<uint> span)
 		{
 			fixed (void* p = _u)
@@ -84,7 +97,7 @@ namespace MathExtensions
 		public override bool Equals(object? obj) => obj is UInt256 other && Equals(other);
 		public bool Equals(UInt256 other)
 		{
-			fixed(void* b = _u)
+			fixed (void* b = _u)
 			{
 				ulong* u = (ulong*)b;
 				ulong* o = (ulong*)other._u;
@@ -115,8 +128,16 @@ namespace MathExtensions
 					*--p = (char)(remainder + '0');
 				}
 			}
-			string s = new string(dest.TrimStart('\0'));
+			string s = new string(dest.TrimStart('\0').TrimStart('0'));
 			return s;
+		}
+		internal string ToStringHex()
+		{
+			StringBuilder sb = new StringBuilder();
+			for (int i = 0; i < DWords; ++i)
+				sb.AppendFormat("{0:X8} ", _u[DWords - 1 - i]);
+			//sb.Remove(39, 1);
+			return sb.ToString().Trim();
 		}
 
 		private static int GetBitCount(UInt256 value)
@@ -126,6 +147,33 @@ namespace MathExtensions
 					return i + 1;
 			return 1;
 		}
+		internal static int GetHighestBit(UInt256 value)
+		{
+			for (int i = Bits - 1; i >= 0; --i)
+				if (((int)(value._u[i / 32] >> (i % 32)) & 1) == 1)
+					return i;
+			return 0;
+		}
+		internal static int GetLowestBit(UInt256 value)
+		{
+			for (int i = 0; i < Bits; ++i)
+				if (((int)(value._u[i / 32] >> (i % 32)) & 1) == 1)
+					return i;
+			return Bits - 1;
+		}
+		public static int LeadingZeroCount(UInt256 value)
+		{
+			if (value == Zero) return Bits;
+			for (int i = Bits - 1; i >= 0; --i)
+			{
+				if (value[i])
+					return i + 1;
+			}
+			return Bits; //should never be reached.
+		}
+
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static int GetDWordCount(UInt256 value)
 		{
 			for (int i = DWords - 1; i >= 0; --i)
@@ -148,6 +196,8 @@ namespace MathExtensions
 			}
 			return 0;
 		}
+
+		public static UInt256 TwosComplement(UInt256 value) => ~value + 1;
 
 		public static UInt256 Add(UInt256 left, UInt256 right)
 		{
@@ -272,21 +322,32 @@ namespace MathExtensions
 		{
 			if (bits < 0)
 				return ShiftRight(value, -bits);
-			int ls = bits % 32;
-			int rs = 32 - ls;
-			uint* u = value._u;
-			return (bits / 32) switch
+			int ls = bits % 64;
+			int rs = 64 - ls;
+			int b = bits / 64;
+			ulong* u = (ulong*)value._u;
+			if (ls != 0)
 			{
-				0 => new UInt256(u[0] << ls, u[0] >> rs | u[1] << ls, u[1] >> rs | u[2] << ls, u[2] >> rs | u[3] << ls, u[3] >> rs | u[4] << ls, u[4] >> rs | u[5] << ls, u[5] >> rs | u[6] << ls, u[6] >> rs | u[7] << ls),
-				1 => new UInt256(0, u[0] << ls, u[0] >> rs | u[1] << ls, u[1] >> rs | u[2] << ls, u[2] >> rs | u[3] << ls, u[3] >> rs | u[4] << ls, u[4] >> rs | u[5] << ls, u[5] >> rs | u[6] << ls),
-				2 => new UInt256(0, 0, u[0] << ls, u[0] >> rs | u[1] << ls, u[1] >> rs | u[2] << ls, u[2] >> rs | u[3] << ls, u[3] >> rs | u[4] << ls, u[4] >> rs | u[5] << ls),
-				3 => new UInt256(0, 0, 0, u[0] << ls, u[0] >> rs | u[1] << ls, u[1] >> rs | u[2] << ls, u[2] >> rs | u[3] << ls, u[3] >> rs | u[4] << ls),
-				4 => new UInt256(0, 0, 0, 0, u[0] << ls, u[0] >> rs | u[1] << ls, u[1] >> rs | u[2] << ls, u[2] >> rs | u[3] << ls),
-				5 => new UInt256(0, 0, 0, 0, 0, u[0] << ls, u[0] >> rs | u[1] << ls, u[1] >> rs | u[2] << ls),
-				6 => new UInt256(0, 0, 0, 0, 0, 0, u[0] << ls, u[0] >> rs | u[1] << ls),
-				7 => new UInt256(0, 0, 0, 0, 0, 0, 0, u[0] << ls),
-				_ => default
-			};
+				return b switch
+				{
+					0 => new UInt256(u[0] << ls, u[0] >> rs | u[1] << ls, u[1] >> rs | u[2] << ls, u[2] >> rs | u[3] << ls),
+					1 => new UInt256(0, u[0] << ls, u[0] >> rs | u[1] << ls, u[1] >> rs | u[2] << ls),
+					2 => new UInt256(0, 0, u[0] << ls, u[0] >> rs | u[1] << ls),
+					3 => new UInt256(0, 0, 0, u[0] << ls),
+					_ => default
+				};
+			}
+			else
+			{
+				return b switch
+				{
+					0 => value,
+					1 => new UInt256(0, u[0], u[1], u[2]),
+					2 => new UInt256(0, 0, u[0], u[1]),
+					3 => new UInt256(0, 0, 0, u[0]),
+					_ => default
+				};
+			}
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -295,21 +356,32 @@ namespace MathExtensions
 		{
 			if (bits < 0)
 				return ShiftLeft(value, -bits);
-			int rs = bits % 32;
-			int ls = 32 - rs;
-			uint* u = value._u;
-			return (bits / 32) switch
+			int rs = bits % 64;
+			int ls = 64 - rs;
+			int b = bits / 64;
+			ulong* u = (ulong*)value._u;
+			if (rs != 0)
 			{
-				0 => new UInt256(u[0] >> rs | u[1] << ls, u[1] >> rs | u[2] << ls, u[2] >> rs | u[3] << ls, u[3] >> rs | u[4] << ls, u[4] >> rs | u[5] << ls, u[5] >> rs | u[6] << ls, u[6] >> rs | u[7] << ls, u[7] >> rs),
-				1 => new UInt256(u[1] >> rs | u[2] << ls, u[2] >> rs | u[3] << ls, u[3] >> rs | u[4] << ls, u[4] >> rs | u[5] << ls, u[5] >> rs | u[6] << ls, u[6] >> rs | u[7] << ls, u[7] >> rs, 0),
-				2 => new UInt256(u[2] >> rs | u[3] << ls, u[3] >> rs | u[4] << ls, u[4] >> rs | u[5] << ls, u[5] >> rs | u[6] << ls, u[6] >> rs | u[7] << ls, u[7] >> rs, 0, 0),
-				3 => new UInt256(u[3] >> rs | u[4] << ls, u[4] >> rs | u[5] << ls, u[5] >> rs | u[6] << ls, u[6] >> rs | u[7] << ls, u[7] >> rs, 0, 0, 0),
-				4 => new UInt256(u[4] >> rs | u[5] << ls, u[5] >> rs | u[6] << ls, u[6] >> rs | u[7] << ls, u[7] >> rs, 0, 0, 0, 0),
-				5 => new UInt256(u[5] >> rs | u[6] << ls, u[6] >> rs | u[7] << ls, u[7] >> rs, 0, 0, 0, 0, 0),
-				6 => new UInt256(u[6] >> rs | u[7] << ls, u[7] >> rs, 0, 0, 0, 0, 0, 0),
-				7 => new UInt256(u[7] >> rs, 0, 0, 0, 0, 0, 0, 0),
-				_ => default,
-			};
+				return b switch
+				{
+					0 => new UInt256(u[0] >> rs | u[1] << ls, u[1] >> rs | u[2] << ls, u[2] >> rs | u[3] << ls, u[3] >> rs),
+					1 => new UInt256(u[1] >> rs | u[2] << ls, u[2] >> rs | u[3] << ls, u[3] >> rs, 0),
+					2 => new UInt256(u[2] >> rs | u[3] << ls, u[3] >> rs, 0, 0),
+					3 => new UInt256(u[3] >> rs, 0, 0, 0),
+					_ => default,
+				};
+			}
+			else
+			{
+				return b switch
+				{
+					0 => value,
+					1 => new UInt256(u[1], u[2], u[3], 0),
+					2 => new UInt256(u[2], u[3], 0, 0),
+					3 => new UInt256(u[3], 0, 0, 0),
+					_ => default,
+				};
+			}
 		}
 
 		public static UInt256 operator +(UInt256 left, UInt256 right) => Add(left, right);
@@ -317,7 +389,7 @@ namespace MathExtensions
 		public static UInt256 operator *(UInt256 left, UInt256 right) => Multiply(left, right);
 		public static UInt256 operator /(UInt256 left, UInt256 right) => Divide(left, right);
 		public static UInt256 operator /(UInt256 left, uint right) => Divide(left, right);
-		public static UInt256 operator %(UInt256 left, UInt256 right) => Remainder(left,right);
+		public static UInt256 operator %(UInt256 left, UInt256 right) => Remainder(left, right);
 		public static UInt256 operator %(UInt256 left, uint right) => Remainder(left, right);
 		public static UInt256 operator ++(UInt256 value) => Add(value, 1);
 		public static UInt256 operator --(UInt256 value) => Subtract(value, 1);
