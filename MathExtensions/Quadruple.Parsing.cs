@@ -377,7 +377,7 @@ namespace MathExtensions
 					// 3) Set the margin value to the lowest mantissa bit's scale.
 
 					// scaledValue     = 2 * mantissa*2^exponent
-					BigInteger.SetUInt128(out scaledValue, mantissa << 1);
+					BigInteger.SetUInt128(out scaledValue, UInt128.ShiftLeft(mantissa));
 					scaledValue.ShiftLeft((uint)(exponent));
 
 					// scale           = 2 * 1
@@ -391,7 +391,7 @@ namespace MathExtensions
 					// In order to track the mantissa data as an integer, we store it as is with a large scale
 
 					// scaledValue     = 2 * mantissa
-					BigInteger.SetUInt128(out scaledValue, mantissa << 1);
+					BigInteger.SetUInt128(out scaledValue, UInt128.ShiftLeft(mantissa));
 
 					// scale           = 2 * 2^(-exponent)
 					BigInteger.Pow2((uint)(-exponent + 1), out scale);

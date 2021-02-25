@@ -296,7 +296,7 @@ namespace MathExtensions
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static UInt128 ShiftLeft(UInt128 value) => new UInt128(value._u[0] << 1, value._u[0] >> 31 | value._u[1] << 1, value._u[1] >> 31 | value._u[2] << 1, value._u[2] >> 31 | value._u[3] << 1);
+		public static UInt128 ShiftLeft(UInt128 value) => new UInt128(((ulong*)value._u)[0] << 1, (((ulong*)value._u)[0] >> 63) | (((ulong*)value._u)[1] << 1));
 		public static UInt128 ShiftLeft(UInt128 value, int bits)
 		{
 			if (bits < 0)
@@ -309,9 +309,9 @@ namespace MathExtensions
 			{
 				return b switch
 				{
-					0 => new UInt128(u[0] << ls, u[0] >> rs | u[1] << ls),
+					0 => new UInt128(u[0] << ls, (u[0] >> rs) | (u[1] << ls)),
 					1 => new UInt128(0, u[0] << ls),
-					_ => default
+					_ => Zero
 				};
 			}
 			else
@@ -320,13 +320,13 @@ namespace MathExtensions
 				{
 					0 => value,
 					1 => new UInt128(0, u[0]),
-					_ => default
+					_ => Zero
 				};
 			}
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static UInt128 ShiftRight(UInt128 value) => new UInt128(value._u[0] >> 1 | value._u[1] << 31, value._u[1] >> 1 | value._u[2] << 31, value._u[2] >> 1 | value._u[3] << 31, value._u[3] >> 1);
+		public static UInt128 ShiftRight(UInt128 value) => new UInt128((((ulong*)value._u)[0] >> 1) | (((ulong*)value._u)[1] << 63), ((ulong*)value._u)[1] >> 1);
 		public static UInt128 ShiftRight(UInt128 value, int bits)
 		{
 			if (bits < 0)
@@ -339,7 +339,7 @@ namespace MathExtensions
 			{
 				return b switch
 				{
-					0 => new UInt128(u[0] >> rs | u[1] << ls, u[1] >> rs),
+					0 => new UInt128((u[0] >> rs) | (u[1] << ls), u[1] >> rs),
 					1 => new UInt128(u[1] >> rs, 0),
 					_ => default,
 				};

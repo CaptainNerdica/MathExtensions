@@ -85,7 +85,7 @@ namespace MathExtensions
 		public static Quadruple ScaleB(Quadruple x, int n) => throw new NotImplementedException();
 		public static int Sign(Quadruple x) => IsZero(x) ? 0 : (IsNegative(x) ? -1 : 1);
 		public static Quadruple Sin(Quadruple x) => throw new NotImplementedException();
-		//public static (Quadruple Sin, Quadruple Cos) SinCos(Quadruple x) => throw new NotImplementedException();
+		public static (Quadruple Sin, Quadruple Cos) SinCos(Quadruple x) => throw new NotImplementedException();
 		public static Quadruple Sinh(Quadruple x) => throw new NotImplementedException();
 		public static Quadruple Sqrt(Quadruple x)
 		{
@@ -93,6 +93,9 @@ namespace MathExtensions
 				return x;
 			if (IsNegative(x))
 				return NaN;
+			int exponent = x._exp != 0 ? x._exp - Bias : 1 - Bias;
+			int newExp = exponent >> 1;
+			GetSignificand(x);
 
 			throw new NotImplementedException();
 		}

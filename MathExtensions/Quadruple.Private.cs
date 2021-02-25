@@ -227,7 +227,7 @@ namespace MathExtensions
 
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static UInt128 GetSignificand(Quadruple quad)
+		internal static UInt128 GetSignificand(Quadruple quad)
 		{
 			const long mask = (1L << 48) - 1;
 			const long normalBit = 1L << 48;
@@ -243,13 +243,6 @@ namespace MathExtensions
 		internal static UInt128 AsUInt128(Quadruple quad) => *(UInt128*)&quad;
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal static Quadruple FromUInt128(UInt128 u) => *(Quadruple*)&u;
-
-		private static Quadruple FromExponent(int exponent)
-		{
-			exponent = Math.Clamp(exponent + Bias, 0, short.MaxValue);
-			UInt128 u = new UInt128(0, (ulong)exponent << 48);
-			return FromUInt128(u);
-		}
 
 
 		internal static string FormatQuadruple(Quadruple value, string? format, NumberFormatInfo info)

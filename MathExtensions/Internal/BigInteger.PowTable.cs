@@ -10,36 +10,36 @@ namespace MathExtensions.Internal
 	{
 		private static readonly uint[] _pow10BigNumTable = new uint[]
 		{
-            // 10^8
-            1,          // _length
-            100000000,  // _blocks
+			// 10^8
+			1,          // _length
+			100000000,  // _blocks
  
-            // 10^16
-            2,          // _length
-            0x6FC10000, // _blocks
-            0x002386F2,
+			// 10^16
+			2,          // _length
+			0x6FC10000, // _blocks
+			0x002386F2,
  
-            // 10^32
-            4,          // _length
-            0x00000000, // _blocks
-            0x85ACEF81,
+			// 10^32
+			4,          // _length
+			0x00000000, // _blocks
+			0x85ACEF81,
 			0x2D6D415B,
 			0x000004EE,
  
-            // 10^64
-            7,          // _length
-            0x00000000, // _blocks
-            0x00000000,
+			// 10^64
+			7,          // _length
+			0x00000000, // _blocks
+			0x00000000,
 			0xBF6A1F01,
 			0x6E38ED64,
 			0xDAA797ED,
 			0xE93FF9F4,
 			0x00184F03,
  
-            // 10^128
-            14,         // _length
-            0x00000000, // _blocks
-            0x00000000,
+			// 10^128
+			14,         // _length
+			0x00000000, // _blocks
+			0x00000000,
 			0x00000000,
 			0x00000000,
 			0x2E953E01,
@@ -53,10 +53,10 @@ namespace MathExtensions.Internal
 			0xE91F2603,
 			0x0000024E,
  
-            // 10^256
-            27,         // _length
-            0x00000000, // _blocks
-            0x00000000,
+			// 10^256
+			27,         // _length
+			0x00000000, // _blocks
+			0x00000000,
 			0x00000000,
 			0x00000000,
 			0x00000000,
@@ -83,10 +83,10 @@ namespace MathExtensions.Internal
 			0x5FDCEFCE,
 			0x000553F7,
  
-            // 10^512
-            54,         // _length
-            0x00000000, // _blocks
-            0x00000000,
+			// 10^512
+			54,         // _length
+			0x00000000, // _blocks
+			0x00000000,
 			0x00000000,
 			0x00000000,
 			0x00000000,
@@ -140,10 +140,10 @@ namespace MathExtensions.Internal
 			0x633415D4,
 			0x0000001C,
  
-            // 10^1024
-            107,        // _length
-            0x00000000, // _blocks
-            0x00000000,
+			// 10^1024
+			107,        // _length
+			0x00000000, // _blocks
+			0x00000000,
 			0x00000000,
 			0x00000000,
 			0x00000000,

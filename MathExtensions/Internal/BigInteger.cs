@@ -34,33 +34,33 @@ namespace MathExtensions.Internal
 		private static readonly uint[] _pow10UInt32Table = new uint[]
 		{
 				1,          // 10^0
-                10,         // 10^1
-                100,        // 10^2
-                1000,       // 10^3
-                10000,      // 10^4
-                100000,     // 10^5
-                1000000,    // 10^6
-                10000000,   // 10^7
-                // These last two are accessed only by MultiplyPow10.
-                100000000,  // 10^8
-                1000000000  // 10^9
-        };
+				10,         // 10^1
+				100,        // 10^2
+				1000,       // 10^3
+				10000,      // 10^4
+				100000,     // 10^5
+				1000000,    // 10^6
+				10000000,   // 10^7
+				// These last two are accessed only by MultiplyPow10.
+				100000000,  // 10^8
+				1000000000  // 10^9
+		};
 
 		private static readonly int[] _pow10BigNumTableIndices = new int[]
 		{
 				0,          // 10^8
-                2,          // 10^16
-                5,          // 10^32
-                10,         // 10^64
-                18,         // 10^128
-                33,         // 10^256
-                61,         // 10^512
-                116,        // 10^1024
-				233,		// 10^2048
+				2,          // 10^16
+				5,          // 10^32
+				10,         // 10^64
+				18,         // 10^128
+				33,         // 10^256
+				61,         // 10^512
+				116,        // 10^1024
+				224,		// 10^2048
 				438,		// 10^4096
 				865,		// 10^8192
 				1717,		// 10^16384
-        };
+		};
 
 		private int _length;
 		private fixed uint _blocks[MaxBlockCount];
@@ -862,7 +862,7 @@ namespace MathExtensions.Internal
 		{
 			int rhsLength = value._length;
 			result._length = rhsLength;
-			Unsafe.CopyBlock(ref Unsafe.As<uint, byte>(ref result._blocks[0]), ref Unsafe.As<uint, byte>(ref value._blocks[0]), (uint)rhsLength);
+			Unsafe.CopyBlock(ref Unsafe.As<uint, byte>(ref result._blocks[0]), ref Unsafe.As<uint, byte>(ref value._blocks[0]), (uint)rhsLength * sizeof(uint));
 		}
 
 		public static void SetZero(out BigInteger result) => result._length = 0;

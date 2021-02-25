@@ -317,7 +317,7 @@ namespace MathExtensions
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static UInt256 ShiftLeft(UInt256 value) => new UInt256(value._u[0] << 1, value._u[0] >> 31 | value._u[1] << 1, value._u[1] >> 31 | value._u[2] << 1, value._u[2] >> 31 | value._u[3] << 1, value._u[3] >> 31 | value._u[4] << 1, value._u[4] >> 31 | value._u[5] << 1, value._u[5] >> 31 | value._u[6] << 1, value._u[6] >> 31 | value._u[7] << 1);
+		public static UInt256 ShiftLeft(UInt256 value) => new UInt256(((ulong*)value._u)[0] << 1, (((ulong*)value._u)[0] >> 63) | (((ulong*)value._u)[1] << 1), (((ulong*)value._u)[1] >> 63) | (((ulong*)value._u)[2] << 1), (((ulong*)value._u)[2] >> 63) | (((ulong*)value._u)[3] << 1));
 		public static UInt256 ShiftLeft(UInt256 value, int bits)
 		{
 			if (bits < 0)
@@ -330,9 +330,9 @@ namespace MathExtensions
 			{
 				return b switch
 				{
-					0 => new UInt256(u[0] << ls, u[0] >> rs | u[1] << ls, u[1] >> rs | u[2] << ls, u[2] >> rs | u[3] << ls),
-					1 => new UInt256(0, u[0] << ls, u[0] >> rs | u[1] << ls, u[1] >> rs | u[2] << ls),
-					2 => new UInt256(0, 0, u[0] << ls, u[0] >> rs | u[1] << ls),
+					0 => new UInt256(u[0] << ls, (u[0] >> rs) | (u[1] << ls), (u[1] >> rs) | (u[2] << ls), (u[2] >> rs) | (u[3] << ls)),
+					1 => new UInt256(0, u[0] << ls, (u[0] >> rs) | (u[1] << ls), (u[1] >> rs) | (u[2] << ls)),
+					2 => new UInt256(0, 0, u[0] << ls, (u[0] >> rs) | (u[1] << ls)),
 					3 => new UInt256(0, 0, 0, u[0] << ls),
 					_ => default
 				};
@@ -351,7 +351,7 @@ namespace MathExtensions
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static UInt256 ShiftRight(UInt256 value) => new UInt256(value._u[0] >> 1 | value._u[1] << 31, value._u[1] >> 1 | value._u[2] << 31, value._u[2] >> 1 | value._u[3] << 31, value._u[3] >> 1 | value._u[4] << 31, value._u[4] >> 1 | value._u[5] << 31, value._u[5] >> 1 | value._u[6] << 31, value._u[6] >> 1 | value._u[7] << 31, value._u[7] >> 1);
+		public static UInt256 ShiftRight(UInt256 value) => new UInt256((((ulong*)value._u)[0] >> 1) | (((ulong*)value._u)[1] << 63), (((ulong*)value._u)[1] >> 1) | (((ulong*)value._u)[2] << 63), (((ulong*)value._u)[2] >> 1) | (((ulong*)value._u)[3] << 63), ((ulong*)value._u)[3] >> 1);
 		public static UInt256 ShiftRight(UInt256 value, int bits)
 		{
 			if (bits < 0)
@@ -364,9 +364,9 @@ namespace MathExtensions
 			{
 				return b switch
 				{
-					0 => new UInt256(u[0] >> rs | u[1] << ls, u[1] >> rs | u[2] << ls, u[2] >> rs | u[3] << ls, u[3] >> rs),
-					1 => new UInt256(u[1] >> rs | u[2] << ls, u[2] >> rs | u[3] << ls, u[3] >> rs, 0),
-					2 => new UInt256(u[2] >> rs | u[3] << ls, u[3] >> rs, 0, 0),
+					0 => new UInt256((u[0] >> rs) | (u[1] << ls), (u[1] >> rs) | (u[2] << ls), (u[2] >> rs) | (u[3] << ls), u[3] >> rs),
+					1 => new UInt256((u[1] >> rs) | (u[2] << ls), (u[2] >> rs) | (u[3] << ls), u[3] >> rs, 0),
+					2 => new UInt256((u[2] >> rs) | (u[3] << ls), u[3] >> rs, 0, 0),
 					3 => new UInt256(u[3] >> rs, 0, 0, 0),
 					_ => default,
 				};

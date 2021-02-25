@@ -16,7 +16,7 @@ namespace MathExtensions
 	/// An Implementation of IEEE 754-2008 binary128 Quadruple precision floating point numbers.
 	/// </summary>
 	[ReadOnly(true)]
-	public unsafe partial struct Quadruple : IEquatable<Quadruple>
+	public unsafe partial struct Quadruple : IEquatable<Quadruple>, IFormattable
 	{
 		private fixed byte _b[16];
 
@@ -187,7 +187,10 @@ namespace MathExtensions
 
 
 		private static readonly UInt128 _onePointZero = (UInt128)1 << 112;
-		public override string ToString() => FormatQuadruple(this, null, NumberFormatInfo.CurrentInfo);
+		public override string ToString() => FormatQuadruple(this, null, NumberFormatInfo.InvariantInfo);
+		public string ToString(string? format) => FormatQuadruple(this, format, NumberFormatInfo.InvariantInfo);
+		public string ToString(IFormatProvider? formatProvider) => FormatQuadruple(this, null, NumberFormatInfo.GetInstance(formatProvider));
+		public string ToString(string? format, IFormatProvider? formatProvider) => FormatQuadruple(this, format, NumberFormatInfo.GetInstance(formatProvider));
 
 		internal string ToStringHex()
 		{
