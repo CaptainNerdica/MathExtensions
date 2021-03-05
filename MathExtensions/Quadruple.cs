@@ -16,12 +16,12 @@ namespace MathExtensions
 	/// An Implementation of IEEE 754-2008 binary128 Quadruple precision floating point numbers.
 	/// </summary>
 	[ReadOnly(true)]
-	public unsafe partial struct Quadruple : IEquatable<Quadruple>, IFormattable
+	public unsafe partial struct Quadruple : IComparable, IComparable<Quadruple>, IEquatable<Quadruple>, IFormattable
 	{
-		private fixed byte _b[16];
+		fixed byte _b[16];
 
-		internal int _sign { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (_b[15] & 0x80) >> 7; }
-		internal short _exp { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => GetExp(this); }
+		internal int Sign { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (_b[15] & 0x80) >> 7; }
+		internal short Exp { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => GetExp(this); }
 
 		internal const int Bias = 16383;
 		internal const int SignificandBits = 112;
@@ -41,23 +41,33 @@ namespace MathExtensions
 		public static readonly Quadruple Zero = new Quadruple(0x0000_0000_0000_0000, 0x0000_0000_0000_0000);
 		public static readonly Quadruple One = new Quadruple(0x3FFF_0000_0000_0000, 0x0000_0000_0000_0000);
 
-		public static bool IsFinite(Quadruple q) => q._exp != 0x7FFF;
-		public static bool IsInfinity(Quadruple q) => q._exp == 0x7FFF && ((ulong*)q._b)[0] == 0 && (((ulong*)q._b)[1] & 0x0000_FFFF_FFFF_FFFF) == 0;
-		public static bool IsNaN(Quadruple q) => q._exp == 0x7FFF && !(((ulong*)q._b)[0] == 0 && (((ulong*)q._b)[1] & 0x0000_FFFF_FFFF_FFFF) == 0);
-		public static bool IsNegative(Quadruple q) => q._sign == 1;
+		public static bool IsFinite(Quadruple q) => q.Exp != 0x7FFF;
+		public static bool IsInfinity(Quadruple q) => q.Exp == 0x7FFF && ((ulong*)q._b)[0] == 0 && (((ulong*)q._b)[1] & 0x0000_FFFF_FFFF_FFFF) == 0;
+		public static bool IsNaN(Quadruple q) => q.Exp == 0x7FFF && !(((ulong*)q._b)[0] == 0 && (((ulong*)q._b)[1] & 0x0000_FFFF_FFFF_FFFF) == 0);
+		public static bool IsNegative(Quadruple q) => ((q._b[15] & 0x80) >> 7) == 1;
 		public static bool IsNegativeInfinity(Quadruple q) => ((ulong*)q._b)[0] == 0xFFFF_0000_0000_0000 && ((ulong*)q._b)[1] == 0;
-		public static bool IsNormal(Quadruple q) => 0x7FFF > q._exp && q._exp > 0;
-		public static bool IsPositive(Quadruple q) => q._sign == 0;
+		public static bool IsNormal(Quadruple q) => 0x7FFF > q.Exp && q.Exp > 0;
+		public static bool IsPositive(Quadruple q) => q.Sign == 0;
 		public static bool IsPositiveInfinity(Quadruple q) => ((ulong*)q._b)[0] == 0x7FFF_0000_0000_0000 && ((ulong*)q._b)[1] == 0;
-		public static bool IsSubnormal(Quadruple q) => q._exp == 0;
+		public static bool IsSubnormal(Quadruple q) => q.Exp == 0;
 		internal static bool IsZero(Quadruple q) => ((ulong*)q._b)[0] == 0 && (((ulong*)q._b)[1] & 0x7FFF_FFFF_FFFF_FFFF) == 0;
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal Quadruple(ulong hi, ulong lo)
 		{
 			fixed (void* buf = _b)
 			{
 				((ulong*)buf)[0] = lo;
 				((ulong*)buf)[1] = hi;
+			}
+		}
+
+		public Quadruple(ReadOnlySpan<byte> span)
+		{
+			fixed (void* p = _b)
+			{
+				Span<byte> s = new Span<byte>(p, sizeof(Quadruple));
+				span.Slice(0, Math.Min(sizeof(Quadruple), span.Length)).CopyTo(s);
 			}
 		}
 
@@ -135,7 +145,6 @@ namespace MathExtensions
 		}
 		public Quadruple(long value)
 		{
-
 			int sign = value < 0 ? 1 : 0;
 			if (sign == 1)
 				value = -value;
@@ -185,8 +194,6 @@ namespace MathExtensions
 		public bool Equals(Quadruple other) => Equals(this, other);
 		public override int GetHashCode() => GetHashCode(this);
 
-
-		private static readonly UInt128 _onePointZero = (UInt128)1 << 112;
 		public override string ToString() => FormatQuadruple(this, null, NumberFormatInfo.InvariantInfo);
 		public string ToString(string? format) => FormatQuadruple(this, format, NumberFormatInfo.InvariantInfo);
 		public string ToString(IFormatProvider? formatProvider) => FormatQuadruple(this, null, NumberFormatInfo.GetInstance(formatProvider));
@@ -197,26 +204,52 @@ namespace MathExtensions
 			fixed (void* p = _b)
 			{
 				StringBuilder sb = new StringBuilder();
-				for (int i = 0; i < 4; ++i)
-					sb.AppendFormat("{0:X8} ", ((uint*)p)[3 - i]);
+				for (int i = 0; i < 8; ++i)
+					sb.AppendFormat("{0:X4} ", ((ushort*)p)[7 - i]);
 				return sb.ToString().Trim();
 			}
 		}
 
-		public static bool operator ==(Quadruple left, Quadruple right) => Equals(left, right);
-		public static bool operator !=(Quadruple left, Quadruple right) => !(left == right);
+		public int CompareTo(Quadruple value) => CompareTo(this, value);
 
-		public static Quadruple operator -(Quadruple quad) => IsNaN(quad) ? quad : unchecked(new Quadruple((ulong)-((long*)quad._b)[1], ((ulong*)quad._b)[0]));
+		public int CompareTo(object? value)
+		{
+			if (value is null)
+				return 1;
+			if (value is Quadruple q)
+				return CompareTo(this, q);
+			throw new ArgumentException($"Object must be of type {nameof(Quadruple)}");
+		}
+
+		public static bool operator ==(Quadruple left, Quadruple right) => Equals(left, right);
+		public static bool operator !=(Quadruple left, Quadruple right) => !Equals(left, right);
+		public static bool operator >(Quadruple left, Quadruple right) => NeitherNaN(left, right) && CompareToInternal(left, right) > 0;
+		public static bool operator <(Quadruple left, Quadruple right) => NeitherNaN(left, right) && CompareToInternal(left, right) < 0;
+		public static bool operator >=(Quadruple left, Quadruple right) => NeitherNaN(left, right) && CompareToInternal(left, right) >= 0;
+		public static bool operator <=(Quadruple left, Quadruple right) => NeitherNaN(left, right) && CompareToInternal(left, right) <= 0;
+
+		public static Quadruple operator -(Quadruple quad) => IsNaN(quad) ? quad : new Quadruple(((ulong*)quad._b)[1] ^ 0x8000_0000_0000_0000, ((ulong*)quad._b)[0]);
 		public static Quadruple operator +(Quadruple left, Quadruple right) => Add(left, right);
 		public static Quadruple operator -(Quadruple left, Quadruple right) => Subtract(left, right);
 		public static Quadruple operator *(Quadruple left, Quadruple right) => Multiply(left, right);
 		public static Quadruple operator /(Quadruple left, Quadruple right) => Divide(left, right);
 
-		public static implicit operator Quadruple(double value) => new Quadruple(value);
 		public static implicit operator Quadruple(float value) => new Quadruple(value);
+		public static implicit operator Quadruple(double value) => new Quadruple(value);
 		public static implicit operator Quadruple(int value) => new Quadruple(value);
+		public static implicit operator Quadruple(uint value) => new Quadruple(value);
 		public static implicit operator Quadruple(long value) => new Quadruple(value);
+		public static implicit operator Quadruple(ulong value) => new Quadruple(value);
 		public static implicit operator Quadruple(UInt128 value) => new Quadruple(value);
 		public static implicit operator Quadruple(UInt256 value) => new Quadruple(value);
+
+		public static explicit operator float(Quadruple q) => ConvertToSingle(q);
+		public static explicit operator double(Quadruple q) => ConvertToDouble(q);
+		public static explicit operator int(Quadruple q) => ConvertToInt32(q);
+		public static explicit operator uint(Quadruple q) => ConvertToUInt32(q);
+		public static explicit operator long(Quadruple q) => ConvertToInt64(q);
+		public static explicit operator ulong(Quadruple q) => ConvertToUInt64(q);
+		public static explicit operator UInt128(Quadruple q) => ConvertToUInt128(q);
+		public static explicit operator UInt256(Quadruple q) => ConvertToUInt256(q);
 	}
 }

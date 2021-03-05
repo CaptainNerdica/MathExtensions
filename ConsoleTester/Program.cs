@@ -15,6 +15,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Globalization;
 
 namespace ConsoleTester
 {
@@ -22,10 +23,25 @@ namespace ConsoleTester
 	{
 		static unsafe void Main()
 		{
-			Quadruple a = 10;
+			//MethodInfo? m = typeof(Quadruple).GetMethod("ToStringHex", BindingFlags.NonPublic | BindingFlags.Instance);
+			double p = Math.Pow(2, -1074);
+			Console.WriteLine(p);
+			long l = BitConverter.DoubleToInt64Bits(p);
+			Console.WriteLine(l.ToString("X16"));
+			Quadruple q0 = p;
+			Console.WriteLine(q0);
+			Console.WriteLine((double)q0);
+		}
 
-			for (int i = 0; i < 20; ++i)
-				Console.WriteLine("{0:F}",a *= a);
+		static Quadruple InvFactorial(int q) => Quadruple.One / Factorial(q);
+
+		private static int Factorial(int q)
+		{
+			if (q < 0)
+				throw new ArgumentOutOfRangeException(nameof(q), "Value cannot be negative");
+			if (q == 0)
+				return 1;
+			return q * Factorial(q - 1);
 		}
 	}
 }

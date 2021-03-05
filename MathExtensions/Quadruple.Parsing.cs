@@ -287,6 +287,7 @@ namespace MathExtensions
 		}
 
 		internal const int QuadrupleImplicitBitIndex = 112;
+		private static readonly UInt128 _onePointZero = (UInt128)1 << 112;
 		private static void Dragon4Quadruple(Quadruple value, int cutoffNumber, bool isSignificantDigits, ref NumberBuffer number)
 		{
 			Quadruple v = Quadruple.IsNegative(value) ? -value : value;
@@ -301,7 +302,7 @@ namespace MathExtensions
 			if ((mantissa >> QuadrupleImplicitBitIndex) != 0)
 			{
 				mantissaHighBitIdx = QuadrupleImplicitBitIndex;
-				hasUnequalMargins = mantissa == ((UInt128)1 << QuadrupleImplicitBitIndex);
+				hasUnequalMargins = mantissa == _onePointZero;
 			}
 			else
 			{
@@ -725,11 +726,11 @@ namespace MathExtensions
 			return outputLen;
 		}
 
-		private static readonly UInt128 _fracMask = ((UInt128)1 << 112) - 1;
+		private static readonly UInt128 _fracMask = _onePointZero - 1;
 		private static UInt128 ExtractFractionAndBiasedExponent(Quadruple value, out int exponent)
 		{
 			UInt128 bits = Quadruple.AsUInt128(value);
-			UInt128 fraction = (bits & _fracMask);
+			UInt128 fraction = bits & _fracMask;
 			exponent = (int)(uint)(bits >> 112) & 0x7FFF;
 
 			if (exponent != 0)
@@ -741,7 +742,7 @@ namespace MathExtensions
 				//
 				// So f = (2^112 + mantissa), e = exp - 16495;
 
-				fraction |= (UInt128)1 << 112;
+				fraction |= _onePointZero;
 				exponent -= 16495;
 			}
 			else
@@ -1080,7 +1081,7 @@ namespace MathExtensions
 						++thousandsSepCtr;
 						if (thousandsSepCtr >= thousandsSepPos.Length)
 						{
-							var newThousandsSepPos = new int[thousandsSepPos.Length * 2];
+							int[] newThousandsSepPos = new int[thousandsSepPos.Length * 2];
 							thousandsSepPos.CopyTo(newThousandsSepPos);
 							thousandsSepPos = newThousandsSepPos;
 						}

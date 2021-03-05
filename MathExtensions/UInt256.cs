@@ -74,13 +74,16 @@ namespace MathExtensions
 				p[3] = ((ulong*)high._u)[1];
 			}
 		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public UInt256(ReadOnlySpan<uint> span)
+		public UInt256(ReadOnlySpan<uint> span) : this(MemoryMarshal.Cast<uint, byte>(span)) { }
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public UInt256(ReadOnlySpan<byte> span)
 		{
 			fixed (void* p = _u)
 			{
-				Span<uint> s = new Span<uint>(p, DWords);
-				span.Slice(0, Math.Min(DWords, span.Length)).CopyTo(s);
+				Span<byte> s = new Span<byte>(p, Bytes);
+				span.Slice(0, Math.Min(Bytes, span.Length)).CopyTo(s);
 			}
 		}
 
@@ -134,9 +137,9 @@ namespace MathExtensions
 		internal string ToStringHex()
 		{
 			StringBuilder sb = new StringBuilder();
-			for (int i = 0; i < DWords; ++i)
-				sb.AppendFormat("{0:X8} ", _u[DWords - 1 - i]);
-			//sb.Remove(39, 1);
+			fixed (void* u = _u)
+				for (int i = 0; i < Words; ++i)
+					sb.AppendFormat("{0:X4} ", ((ushort*)u)[Words - 1 - i]);
 			return sb.ToString().Trim();
 		}
 

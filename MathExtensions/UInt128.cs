@@ -17,7 +17,7 @@ namespace MathExtensions
 		internal const int Words = 8;
 		internal const int DWords = 4;
 		internal const int QWords = 2;
-		internal fixed uint _u[DWords];
+		internal fixed uint _u[4];
 
 		public static readonly UInt128 MaxValue = new UInt128(uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue);
 		public static readonly UInt128 MinValue = 0;
@@ -114,9 +114,9 @@ namespace MathExtensions
 		internal string ToStringHex()
 		{
 			StringBuilder sb = new StringBuilder();
-			for (int i = 0; i < DWords; ++i)
-				sb.AppendFormat("{0:X8} ", _u[DWords - 1 - i]);
-			//sb.Remove(39, 1);
+			fixed (void* u = _u)
+				for (int i = 0; i < Words; ++i)
+					sb.AppendFormat("{0:X4} ", ((ushort*)u)[Words - 1 - i]);
 			return sb.ToString();
 		}
 

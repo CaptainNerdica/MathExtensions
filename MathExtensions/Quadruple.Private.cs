@@ -9,7 +9,7 @@ namespace MathExtensions
 	public unsafe partial struct Quadruple
 	{
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static bool Equals(Quadruple left, Quadruple right) => !(IsNaN(left) || IsNaN(right)) && ((long*)left._b)[0] == ((long*)right._b)[0] && ((long*)left._b)[1] == ((long*)right._b)[1];
+		private static bool Equals(Quadruple left, Quadruple right) => NeitherNaN(left, right) && ((long*)left._b)[0] == ((long*)right._b)[0] && ((long*)left._b)[1] == ((long*)right._b)[1];
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static int GetHashCode(Quadruple quad) => HashCode.Combine(((long*)quad._b)[0], ((long*)quad._b)[1]);
 
@@ -20,11 +20,11 @@ namespace MathExtensions
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static Quadruple Multiply(Quadruple left, Quadruple right)
 		{
-			if (IsNaN(left) || IsNaN(right) || (IsInfinity(left) && right == Zero) || (left == Zero && IsInfinity(right)))
+			if (EitherNaN(left, right) || (IsInfinity(left) && right == Zero) || (left == Zero && IsInfinity(right)))
 				return NaN;
-			int sign = left._sign ^ right._sign;
-			int lExp = left._exp == 0 ? 1 : left._exp;
-			int rExp = right._exp == 0 ? 1 : right._exp;
+			int sign = left.Sign ^ right.Sign;
+			int lExp = left.Exp == 0 ? 1 : left.Exp;
+			int rExp = right.Exp == 0 ? 1 : right.Exp;
 			long exponent = lExp + rExp - 2 * Bias;
 			UInt128 lMantissa = GetSignificand(left);
 			UInt128 rMantissa = GetSignificand(right);
@@ -52,23 +52,23 @@ namespace MathExtensions
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static Quadruple Divide(Quadruple left, Quadruple right)
 		{
-			if (IsNaN(left) || IsNaN(right) || (IsInfinity(left) && IsInfinity(right)))
+			if (EitherNaN(left, right) || (IsInfinity(left) && IsInfinity(right)))
 				return NaN;
 			if (right == Zero)
 			{
 				if (left == Zero)
 					return NaN;
-#pragma warning disable CS8509 // The switch statement will always return a value. (_sign can only be 0 or 1)
-				return left._sign switch
+#pragma warning disable CS8509 // The switch statement will always return a value. (Sign can only be 0 or 1)
+				return left.Sign switch
 				{
 					0 => PositiveInfinity,
 					1 => NegativeInfinity
 				};
 #pragma warning restore CS8509
 			}
-			int sign = left._sign ^ right._sign;
-			int lExp = left._exp == 0 ? 1 : left._exp;
-			int rExp = right._exp == 0 ? 1 : right._exp;
+			int sign = left.Sign ^ right.Sign;
+			int lExp = left.Exp == 0 ? 1 : left.Exp;
+			int rExp = right.Exp == 0 ? 1 : right.Exp;
 			long exponent = lExp - rExp;
 			UInt256 lMantissa = new UInt256(UInt128.Zero, GetSignificand(left));
 			UInt128 rMantissa = GetSignificand(right);
@@ -97,16 +97,16 @@ namespace MathExtensions
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static Quadruple Add(Quadruple left, Quadruple right)
 		{
-			if (IsNaN(left) || IsNaN(right))
+			if (EitherNaN(left, right))
 				return NaN;
-			int lExp = left._exp == 0 ? 1 : left._exp;
-			int rExp = right._exp == 0 ? 1 : right._exp;
+			int lExp = left.Exp == 0 ? 1 : left.Exp;
+			int rExp = right.Exp == 0 ? 1 : right.Exp;
 			int exponent = Math.Max(lExp, rExp) - Bias;
 			UInt256 l = new UInt256(UInt128.Zero, GetSignificand(left));
 			UInt256 r = new UInt256(UInt128.Zero, GetSignificand(right));
-			if ((left._sign ^ right._sign) != 0)
+			if ((left.Sign ^ right.Sign) != 0)
 			{
-				if (left._sign == 1)
+				if (left.Sign == 1)
 					l = UInt256.TwosComplement(l);
 				else
 					r = UInt256.TwosComplement(r);
@@ -155,16 +155,16 @@ namespace MathExtensions
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static Quadruple Subtract(Quadruple left, Quadruple right)
 		{
-			if (IsNaN(left) || IsNaN(right))
+			if (EitherNaN(left, right))
 				return NaN;
-			int lExp = left._exp == 0 ? 1 : left._exp;
-			int rExp = right._exp == 0 ? 1 : right._exp;
+			int lExp = left.Exp == 0 ? 1 : left.Exp;
+			int rExp = right.Exp == 0 ? 1 : right.Exp;
 			int exponent = Math.Max(lExp, rExp) - Bias;
 			UInt256 l = new UInt256(UInt128.Zero, GetSignificand(left));
 			UInt256 r = new UInt256(UInt128.Zero, GetSignificand(right));
-			if ((left._sign ^ right._sign) != 0)
+			if ((left.Sign ^ right.Sign) != 0)
 			{
-				if (left._sign == 1)
+				if (left.Sign == 1)
 					l = UInt256.TwosComplement(l);
 				else
 					r = UInt256.TwosComplement(r);
@@ -210,7 +210,8 @@ namespace MathExtensions
 			return FromUInt128(d);
 		}
 
-		private static UInt128 RoundToEven(UInt128 value, byte grs)
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal static UInt128 RoundToEven(UInt128 value, byte grs)
 		{
 			if ((grs & 0b100) == 0)
 				return value;
@@ -250,5 +251,219 @@ namespace MathExtensions
 			ValueStringBuilder sb = new ValueStringBuilder(stackalloc char[32]);
 			return QuadrupleParsing.FormatQuadruple(ref sb, value, format, info) ?? sb.ToString();
 		}
+
+		private static int ConvertToInt32(Quadruple q)
+		{
+			const int significandBits = 31;
+			int sign = q.Sign;
+			int exponent = q.Exp - Bias;
+			if (exponent < 0 || exponent > significandBits)
+				return 0;
+			UInt128 s = GetSignificand(q) >> (SignificandBits - exponent);
+			if (sign == 0)
+				return (int)(uint)s;
+			else
+				return ~(int)(uint)s + 1;
+		}
+		private static uint ConvertToUInt32(Quadruple q)
+		{
+			const int significandBits = 32;
+			int sign = q.Sign;
+			int exponent = q.Exp - Bias;
+			if (exponent < 0 || exponent > significandBits || sign == 1)
+				return 0;
+			UInt128 s = GetSignificand(q) >> (SignificandBits - exponent);
+			return (uint)s;
+		}
+		private static long ConvertToInt64(Quadruple q)
+		{
+			const int significandBits = 63;
+			int sign = q.Sign;
+			int exponent = q.Exp - Bias;
+			if (exponent < 0 || exponent > significandBits)
+				return 0;
+			UInt128 s = GetSignificand(q) >> (SignificandBits - exponent);
+			if (sign == 0)
+				return (long)(ulong)s;
+			else
+				return ~(long)(ulong)s + 1;
+		}
+
+		private static ulong ConvertToUInt64(Quadruple q)
+		{
+			const int significandBits = 64;
+			int sign = q.Sign;
+			int exponent = q.Exp - Bias;
+			if (exponent < 0 || exponent > significandBits || sign == 1)
+				return 0;
+			UInt128 s = GetSignificand(q) >> (SignificandBits - exponent);
+			return (ulong)s;
+		}
+
+		private static UInt128 ConvertToUInt128(Quadruple q)
+		{
+			const int significandBits = 128;
+			int sign = q.Sign;
+			int exponent = q.Exp - Bias;
+			if (exponent < 0 || exponent > significandBits || sign == 1)
+				return UInt128.Zero;
+			UInt128 s = GetSignificand(q) >> (SignificandBits - exponent);
+			return s;
+		}
+
+		private static UInt256 ConvertToUInt256(Quadruple q)
+		{
+			const int significandBits = 256;
+			int sign = q.Sign;
+			int exponent = q.Exp - Bias;
+			if (exponent < 0 || exponent > significandBits || sign == 1)
+				return UInt256.Zero;
+			UInt256 s = ((UInt256)GetSignificand(q)) >> (SignificandBits - exponent);
+			return s;
+		}
+
+		public static float ConvertToSingle(Quadruple q)
+		{
+			const int bias = 127;
+			const int significandBits = 23;
+			if (IsNaN(q))
+				return float.NaN;
+			int sign = q.Sign;
+			int e = q.Exp;
+			int exp = e != 0 ? e - Bias : 1 - Bias;
+			if (exp < 1 - bias - significandBits)
+			{
+				if (sign == 1)
+					return -0f;
+				else
+					return 0f;
+			}
+			else if (exp > bias)
+			{
+				if (sign == 1)
+					return float.NegativeInfinity;
+				else
+					return float.PositiveInfinity;
+			}
+			else
+			{
+				UInt128 s = GetSignificand(q);
+				int sbits;
+				if (exp < 1 - bias)
+				{
+					int diff = -exp - bias;
+					s >>= NormalMantissaBits - significandBits + diff;
+					sbits = (int)s._u[0];
+					return BitConverter.Int32BitsToSingle((sign << 31) | sbits);
+				}
+				s >>= NormalMantissaBits - significandBits;
+				sbits = (int)s._u[0];
+				return BitConverter.Int32BitsToSingle((sign << 31) | (exp << (significandBits + 1)) | sbits);
+			}
+		}
+
+		public static double ConvertToDouble(Quadruple q)
+		{
+			const int bias = 1023;
+			const int significandBits = 52;
+			if (IsNaN(q))
+				return float.NaN;
+			long sign = q.Sign;
+			int e = q.Exp;
+			int exp = e != 0 ? e - Bias : 1 - Bias;
+			if (exp < 1 - bias - significandBits)
+			{
+				if (sign == 1)
+					return -0d;
+				else
+					return 0d;
+			}
+			else if (exp > bias)
+			{
+				if (sign == 1)
+					return double.NegativeInfinity;
+				else
+					return double.PositiveInfinity;
+			}
+			else
+			{
+				UInt128 s = GetSignificand(q);
+				long sbits;
+				if (exp < 1 - bias)
+				{
+					int diff = -exp - bias;
+					s >>= NormalMantissaBits - significandBits + diff;
+					sbits = (long)((ulong*)s._u)[0];
+					return BitConverter.Int64BitsToDouble((sign << 63) | sbits);
+				}
+				s >>= NormalMantissaBits - significandBits;
+				sbits = (long)((ulong*)s._u)[0];
+				return BitConverter.Int64BitsToDouble((sign << 63) | ((long)exp << (significandBits + 1)) | sbits);
+			}
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static int CompareTo(Quadruple left, Quadruple right)
+		{
+			bool lNaN = IsNaN(left);
+			bool rNaN = IsNaN(right);
+			if (left == right || (lNaN && rNaN))
+				return 0;
+			if (lNaN)
+				return -1;
+			if (rNaN)
+				return 1;
+			if (IsZero(left) && IsZero(right))
+				return 0;
+			int lSign = left.Sign;
+			int rSign = right.Sign;
+			if ((lSign ^ rSign) != 0)
+				return rSign - lSign;
+			int expDiff = left.Exp - right.Exp;
+			int compare;
+			if (expDiff == 0)
+				compare = CompareSignificandsUnsafe((ulong*)left._b, (ulong*)right._b);
+			else
+				compare = expDiff;
+			return lSign == 0 ? compare : -compare;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal static int CompareToInternal(Quadruple left, Quadruple right)
+		{
+			if (left == right)
+				return 0;
+			if (IsZero(left) && IsZero(right))
+				return 0;
+			int lSign = left.Sign;
+			int rSign = right.Sign;
+			if ((lSign ^ rSign) != 0)
+				return rSign - lSign;
+			int expDiff = left.Exp - right.Exp;
+			int compare;
+			if (expDiff == 0)
+				compare = CompareSignificandsUnsafe((ulong*)left._b, (ulong*)right._b);
+			else
+				compare = expDiff;
+			return lSign == 0 ? compare : -compare;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static int CompareSignificandsUnsafe(ulong* sl, ulong* sr)
+		{
+			const ulong highMask = 0xFFFF_FFFF_FFFF;
+			long highDiff = unchecked((long)(sl[1] & highMask) - (long)(sr[1] & highMask));
+			if (highDiff != 0)
+				return highDiff > 0 ? 1 : -1;
+			long lowDiff = unchecked((long)sl[0] - (long)sr[0]);
+			if (lowDiff != 0)
+				return lowDiff > 0 ? 1 : -1;
+			return 0;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static bool EitherNaN(Quadruple left, Quadruple right) => IsNaN(left) || IsNaN(right);
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static bool NeitherNaN(Quadruple left, Quadruple right) => !(IsNaN(left) || IsNaN(right));
 	}
 }
