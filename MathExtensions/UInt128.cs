@@ -117,7 +117,7 @@ namespace MathExtensions
 			fixed (void* u = _u)
 				for (int i = 0; i < Words; ++i)
 					sb.AppendFormat("{0:X4} ", ((ushort*)u)[Words - 1 - i]);
-			return sb.ToString();
+			return sb.ToString().Trim();
 		}
 
 		private static int GetBitCount(UInt128 value)

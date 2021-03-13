@@ -23,25 +23,18 @@ namespace ConsoleTester
 	{
 		static unsafe void Main()
 		{
-			//MethodInfo? m = typeof(Quadruple).GetMethod("ToStringHex", BindingFlags.NonPublic | BindingFlags.Instance);
-			double p = Math.Pow(2, -1074);
-			Console.WriteLine(p);
-			long l = BitConverter.DoubleToInt64Bits(p);
-			Console.WriteLine(l.ToString("X16"));
-			Quadruple q0 = p;
-			Console.WriteLine(q0);
-			Console.WriteLine((double)q0);
+			Quadruple q = -12345 * MathQ.PI;
+			Console.WriteLine(q);
+			Console.WriteLine(MathQ.Truncate(q));
 		}
 
-		static Quadruple InvFactorial(int q) => Quadruple.One / Factorial(q);
+		static Quadruple InvFactorial(Quadruple q) => Quadruple.One / Factorial(q);
 
-		private static int Factorial(int q)
+		private static Quadruple Factorial(Quadruple q)
 		{
-			if (q < 0)
-				throw new ArgumentOutOfRangeException(nameof(q), "Value cannot be negative");
-			if (q == 0)
-				return 1;
-			return q * Factorial(q - 1);
+			if (q == Quadruple.Zero)
+				return Quadruple.One;
+			return q * Factorial(q - Quadruple.One);
 		}
 	}
 }

@@ -18,9 +18,9 @@ namespace MathExtensions
 	[ReadOnly(true)]
 	public unsafe partial struct Quadruple : IComparable, IComparable<Quadruple>, IEquatable<Quadruple>, IFormattable
 	{
-		fixed byte _b[16];
+		internal fixed uint _b[4];
 
-		internal int Sign { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (_b[15] & 0x80) >> 7; }
+		internal int Sign { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (int)(_b[3] >> 31); }
 		internal short Exp { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => GetExp(this); }
 
 		internal const int Bias = 16383;
@@ -44,7 +44,7 @@ namespace MathExtensions
 		public static bool IsFinite(Quadruple q) => q.Exp != 0x7FFF;
 		public static bool IsInfinity(Quadruple q) => q.Exp == 0x7FFF && ((ulong*)q._b)[0] == 0 && (((ulong*)q._b)[1] & 0x0000_FFFF_FFFF_FFFF) == 0;
 		public static bool IsNaN(Quadruple q) => q.Exp == 0x7FFF && !(((ulong*)q._b)[0] == 0 && (((ulong*)q._b)[1] & 0x0000_FFFF_FFFF_FFFF) == 0);
-		public static bool IsNegative(Quadruple q) => ((q._b[15] & 0x80) >> 7) == 1;
+		public static bool IsNegative(Quadruple q) => (q._b[3] >> 31) == 1;
 		public static bool IsNegativeInfinity(Quadruple q) => ((ulong*)q._b)[0] == 0xFFFF_0000_0000_0000 && ((ulong*)q._b)[1] == 0;
 		public static bool IsNormal(Quadruple q) => 0x7FFF > q.Exp && q.Exp > 0;
 		public static bool IsPositive(Quadruple q) => q.Sign == 0;
@@ -60,6 +60,15 @@ namespace MathExtensions
 				((ulong*)buf)[0] = lo;
 				((ulong*)buf)[1] = hi;
 			}
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal Quadruple(uint u0, uint u1, uint u2, uint u3)
+		{
+			_b[0] = u0;
+			_b[1] = u1;
+			_b[2] = u2;
+			_b[3] = u3;
 		}
 
 		public Quadruple(ReadOnlySpan<byte> span)
@@ -120,6 +129,8 @@ namespace MathExtensions
 		}
 		public Quadruple(int value)
 		{
+			if (value == 0)
+				return;
 			int sign = value < 0 ? 1 : 0;
 			if (sign == 1)
 				value = -value;
@@ -134,6 +145,8 @@ namespace MathExtensions
 		}
 		public Quadruple(uint value)
 		{
+			if (value == 0)
+				return;
 			int hbit = BigIntHelpers.GetHighestBit(value);
 			int exp = hbit;
 			UInt128 u = value;
@@ -145,6 +158,8 @@ namespace MathExtensions
 		}
 		public Quadruple(long value)
 		{
+			if (value == 0)
+				return;
 			int sign = value < 0 ? 1 : 0;
 			if (sign == 1)
 				value = -value;
@@ -159,6 +174,8 @@ namespace MathExtensions
 		}
 		public Quadruple(ulong value)
 		{
+			if (value == 0)
+				return;
 			int hbit = BigIntHelpers.GetHighestBit(value);
 			int exp = hbit;
 			UInt128 u = value;
@@ -170,6 +187,8 @@ namespace MathExtensions
 		}
 		public Quadruple(UInt128 value)
 		{
+			if (value == UInt128.Zero)
+				return;
 			int hbit = UInt128.GetHighestBit(value);
 			int exp = hbit;
 			UInt128 u = value;
@@ -181,6 +200,8 @@ namespace MathExtensions
 		}
 		public Quadruple(UInt256 value)
 		{
+			if (value == UInt256.Zero)
+				return;
 			int hbit = UInt256.GetHighestBit(value);
 			int exp = hbit;
 			UInt128 u = (UInt128)(value << (SignificandBits - hbit));

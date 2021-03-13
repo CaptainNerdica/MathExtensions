@@ -104,27 +104,17 @@ namespace MathExtensions
 			int exponent = Math.Max(lExp, rExp) - Bias;
 			UInt256 l = new UInt256(UInt128.Zero, GetSignificand(left));
 			UInt256 r = new UInt256(UInt128.Zero, GetSignificand(right));
+			int diff = Math.Abs(lExp - rExp);
+			if (lExp > rExp)
+				r >>= diff;
+			else if (rExp > lExp)
+				l >>= diff;
 			if ((left.Sign ^ right.Sign) != 0)
 			{
 				if (left.Sign == 1)
 					l = UInt256.TwosComplement(l);
 				else
 					r = UInt256.TwosComplement(r);
-			}
-			int diff = Math.Abs(lExp - rExp);
-			if (lExp > rExp)
-			{
-				if (r[255])
-					r = r >> diff | (UInt256.MaxValue << diff);
-				else
-					r >>= diff;
-			}
-			else if (rExp > lExp)
-			{
-				if (l[255])
-					l = l >> diff | (UInt256.MaxValue << diff);
-				else
-					l >>= diff;
 			}
 			UInt256 sum = l + r;
 			int sign = sum[255] ? 1 : 0;
@@ -162,27 +152,17 @@ namespace MathExtensions
 			int exponent = Math.Max(lExp, rExp) - Bias;
 			UInt256 l = new UInt256(UInt128.Zero, GetSignificand(left));
 			UInt256 r = new UInt256(UInt128.Zero, GetSignificand(right));
+			int diff = Math.Abs(lExp - rExp);
+			if (lExp > rExp)
+				r >>= diff;
+			else if (rExp > lExp)
+				l >>= diff;
 			if ((left.Sign ^ right.Sign) != 0)
 			{
 				if (left.Sign == 1)
 					l = UInt256.TwosComplement(l);
 				else
 					r = UInt256.TwosComplement(r);
-			}
-			int diff = Math.Abs(lExp - rExp);
-			if (lExp > rExp)
-			{
-				if (r[255])
-					r = r >> diff | (UInt256.MaxValue << diff);
-				else
-					r >>= diff;
-			}
-			else if (rExp > lExp)
-			{
-				if (l[255])
-					l = l >> diff | (UInt256.MaxValue << diff);
-				else
-					l >>= diff;
 			}
 			UInt256 difference = l - r;
 			int sign = difference[255] ? 1 : 0;
@@ -353,12 +333,12 @@ namespace MathExtensions
 				{
 					int diff = -exp - bias;
 					s >>= NormalMantissaBits - significandBits + diff;
-					sbits = (int)s._u[0];
+					sbits = (int)s._u[0] & 0x007F_FFFF;
 					return BitConverter.Int32BitsToSingle((sign << 31) | sbits);
 				}
-				s >>= NormalMantissaBits - significandBits;
-				sbits = (int)s._u[0];
-				return BitConverter.Int32BitsToSingle((sign << 31) | (exp << (significandBits + 1)) | sbits);
+				s >>= NormalMantissaBits - significandBits - 1;
+				sbits = (int)s._u[0] & 0x007F_FFFF;
+				return BitConverter.Int32BitsToSingle((sign << 31) | ((exp + bias) << significandBits) | sbits);
 			}
 		}
 
@@ -367,7 +347,7 @@ namespace MathExtensions
 			const int bias = 1023;
 			const int significandBits = 52;
 			if (IsNaN(q))
-				return float.NaN;
+				return double.NaN;
 			long sign = q.Sign;
 			int e = q.Exp;
 			int exp = e != 0 ? e - Bias : 1 - Bias;
@@ -393,12 +373,12 @@ namespace MathExtensions
 				{
 					int diff = -exp - bias;
 					s >>= NormalMantissaBits - significandBits + diff;
-					sbits = (long)((ulong*)s._u)[0];
+					sbits = (long)((ulong*)s._u)[0] & 0x000F_FFFF_FFFF_FFFF;
 					return BitConverter.Int64BitsToDouble((sign << 63) | sbits);
 				}
-				s >>= NormalMantissaBits - significandBits;
-				sbits = (long)((ulong*)s._u)[0];
-				return BitConverter.Int64BitsToDouble((sign << 63) | ((long)exp << (significandBits + 1)) | sbits);
+				s >>= NormalMantissaBits - significandBits - 1;
+				sbits = (long)((ulong*)s._u)[0] & 0x000F_FFFF_FFFF_FFFF;
+				return BitConverter.Int64BitsToDouble((sign << 63) | ((long)(exp + bias) << significandBits) | sbits);
 			}
 		}
 
@@ -462,8 +442,8 @@ namespace MathExtensions
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static bool EitherNaN(Quadruple left, Quadruple right) => IsNaN(left) || IsNaN(right);
+		internal static bool EitherNaN(Quadruple left, Quadruple right) => IsNaN(left) || IsNaN(right);
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static bool NeitherNaN(Quadruple left, Quadruple right) => !(IsNaN(left) || IsNaN(right));
+		internal static bool NeitherNaN(Quadruple left, Quadruple right) => !(IsNaN(left) || IsNaN(right));
 	}
 }

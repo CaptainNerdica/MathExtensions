@@ -13,6 +13,8 @@ namespace MathExtensions
 		internal static readonly uint[] Int32Masks1Bit = new uint[32];
 		internal static readonly ulong[] Int64Masks1Bit = new ulong[64];
 		internal static readonly UInt128[] Int128Masks1Bit = new UInt128[128];
+		internal static readonly UInt128[] Int128MasksLowBits = new UInt128[128];
+		internal static readonly UInt128[] Int128MasksHighBits = new UInt128[128];
 		internal static readonly UInt256[] Int256Masks1Bit = new UInt256[256];
 
 		static BigIntHelpers()
@@ -23,6 +25,10 @@ namespace MathExtensions
 				Int64Masks1Bit[i] = 1UL << i;
 			for (int i = 0; i < Int128Masks1Bit.Length; ++i)
 				Int128Masks1Bit[i] = (UInt128)1 << i;
+			for (int i = 0; i < Int128MasksLowBits.Length; ++i)
+				Int128MasksLowBits[i] = Int128Masks1Bit[(i + 1) & 0x7F] - UInt128.One;
+			for (int i = 0; i < Int128MasksHighBits.Length; ++i)
+				Int128MasksHighBits[i] = ~Int128MasksLowBits[i];
 			for (int i = 0; i < Int256Masks1Bit.Length; ++i)
 				Int256Masks1Bit[i] = (UInt256)1 << i;
 		}
@@ -237,7 +243,7 @@ namespace MathExtensions
 		internal static unsafe void Divide(uint* left, int leftLength, uint right, uint* bits)
 		{
 			ulong carry = 0UL;
-			for(int i = leftLength - 1; i >= 0; --i)
+			for (int i = leftLength - 1; i >= 0; --i)
 			{
 				ulong value = (carry << 32) | left[i];
 				ulong digit = value / right;

@@ -21,7 +21,6 @@ namespace MathExtensions
 				else
 					return Zero;
 			}
-
 			return default;
 		}
 	}
