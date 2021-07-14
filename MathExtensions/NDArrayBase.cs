@@ -37,7 +37,7 @@ namespace MathExtensions
 		IEnumerator IEnumerable.GetEnumerator() => new Enumerator(this);
 
 		public abstract void Fill(T value);
-		public abstract NDArrayBase<TCast> Cast<TCast>();
+		public abstract NDArrayBase<TCast> Cast<TCast>() where TCast : struct;
 
 		public abstract void Clear();
 		public abstract void Add(T item);
@@ -58,7 +58,7 @@ namespace MathExtensions
 				_current = default;
 			}
 
-			public T Current => _current!;
+			public T Current => _current ?? default!;
 
 			object? IEnumerator.Current => _index == 0 || _index == _array.Size + 1 ? throw new InvalidOperationException("Enumeration has either not started or has already finished") : Current;
 

@@ -16,7 +16,9 @@ namespace MathExtensions
 		[FieldOffset(0)]
 		internal UInt128 i;
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 		public static unsafe implicit operator QuadUnion(Quadruple x) => *(QuadUnion*)&x;
+		[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 		public static unsafe implicit operator QuadUnion(UInt128 i) => *(QuadUnion*)&i;
 	}
 }

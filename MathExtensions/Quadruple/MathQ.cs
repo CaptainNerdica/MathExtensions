@@ -22,7 +22,7 @@ namespace MathExtensions
 		/// Returns the absolute value of a quadruple-precision floating-point number.
 		/// </summary>
 		/// <param name="x"> A number that is greater than or equal to <c>Quadruple.MinValue</c>, but less than or equal to <c>Quadruple.MaxValue</c>.</param>
-		/// <returns>A quadruple-precision floating-point number, x, such that 0 ≤ x ≤ S<c>Quadruple.MaxValue</c></returns>
+		/// <returns>A quadruple-precision floating-point number, x, such that 0 ≤ x ≤ <c>Quadruple.MaxValue</c></returns>
 		public static Quadruple Abs(Quadruple x) => IsNaN(x) ? x : IsNegative(x) ? -x : x;
 		public static Quadruple Acos(Quadruple x) => throw new NotImplementedException();
 		public static Quadruple Acosh(Quadruple x) => throw new NotImplementedException();
@@ -62,7 +62,7 @@ namespace MathExtensions
 			return FromUInt128(u);
 		}
 		public static Quadruple Cbrt(Quadruple x) => throw new NotImplementedException();
-		public static partial Quadruple Ceiling(Quadruple x);
+		public static unsafe partial Quadruple Ceiling(Quadruple value);
 		public static Quadruple CopySign(Quadruple x, Quadruple y)
 		{
 			QuadUnion* r = (QuadUnion*)&x;
@@ -72,7 +72,7 @@ namespace MathExtensions
 		public static Quadruple Cos(Quadruple x) => throw new NotImplementedException();
 		public static Quadruple Cosh(Quadruple x) => throw new NotImplementedException();
 		public static partial Quadruple Exp(Quadruple x);
-		public static partial Quadruple Floor(Quadruple x);
+		public static unsafe partial Quadruple Floor(Quadruple value);
 		public static partial Quadruple FusedMultiplyAdd(Quadruple x, Quadruple y, Quadruple z);
 		public static Quadruple IEEERemainder(Quadruple x, Quadruple y) => throw new NotImplementedException();
 		public static int ILogB(Quadruple x)
@@ -84,7 +84,7 @@ namespace MathExtensions
 			if (IsSubnormal(x))
 			{
 				UInt128 u = GetSignificand(x);
-				int bit = 112 - UInt128.GetHighestBit(u);
+				int bit = 112 - UInt128.HighestBit(u);
 				return 1 - bit - Bias;
 			}
 			else
@@ -102,12 +102,12 @@ namespace MathExtensions
 		public static Quadruple Pow(Quadruple x, Quadruple y) => throw new NotImplementedException();
 		//public static Quadruple ReciprocalEstimate(Quadruple x) => throw new NotImplementedException();
 		//public static Quadruple ReciprocalSqrtEstimate(Quadruple x) => throw new NotImplementedException();
-		public static partial Quadruple Round(Quadruple x, MidpointRounding mode);
-		public static partial Quadruple Round(Quadruple x, int digits, MidpointRounding mode);
-		public static partial Quadruple Round(Quadruple x, int digits);
-		public static partial Quadruple Round(Quadruple x);
+		public static  partial Quadruple Round(Quadruple value, MidpointRounding mode);
+		public static unsafe partial Quadruple Round(Quadruple value, int digits, MidpointRounding mode);
+		public static partial Quadruple Round(Quadruple value, int digits);
+		public static unsafe partial Quadruple Round(Quadruple value);
 		public static Quadruple ScaleB(Quadruple x, int n) => throw new NotImplementedException();
-		public static int Sign(Quadruple x) => IsZero(x) ? 0 : (IsNegative(x) ? -1 : 1);
+		public static int Sign(Quadruple x) => IsNaN(x) ? throw new ArithmeticException("Function does not accept floating point Not-a-Number values.") : (IsZero(x) ? 0 : (IsNegative(x) ? -1 : 1));
 		public static partial Quadruple Sin(Quadruple x);
 		public static (Quadruple Sin, Quadruple Cos) SinCos(Quadruple x) => throw new NotImplementedException();
 		public static Quadruple Sinh(Quadruple x) => throw new NotImplementedException();
@@ -116,6 +116,6 @@ namespace MathExtensions
 		public static partial UInt256 ISqrt(UInt256 x);
 		public static Quadruple Tan(Quadruple x) => throw new NotImplementedException();
 		public static Quadruple Tanh(Quadruple x) => throw new NotImplementedException();
-		public static unsafe partial Quadruple Truncate(Quadruple x);
+		public static unsafe partial Quadruple Truncate(Quadruple value);
 	}
 }

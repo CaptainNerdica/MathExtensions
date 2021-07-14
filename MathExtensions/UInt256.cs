@@ -4,12 +4,13 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.Arm;
+using System.Runtime.Intrinsics.X86;
 using System.Text;
 
 namespace MathExtensions
 {
-	[ReadOnly(true)]
-	[DebuggerDisplay("{ToString()}")]
 	public unsafe struct UInt256 : IEquatable<UInt256>, IComparable<UInt256>
 	{
 		internal const int Bits = 256;
@@ -20,17 +21,16 @@ namespace MathExtensions
 		internal fixed uint _u[DWords];
 
 		public static readonly UInt256 MaxValue = new UInt256(ulong.MaxValue, ulong.MaxValue, ulong.MaxValue, ulong.MaxValue);
-		public static readonly UInt256 MinValue = 0;
-		public static readonly UInt256 Zero = 0;
+		public static readonly UInt256 MinValue = default;
+		public static readonly UInt256 Zero = default;
 		public static readonly UInt256 One = 1;
+
 
 		internal bool this[int index]
 		{
-			get => index < Bits && index >= 0 ? ((_u[index / 32] >> (index % 32)) & 1) == 1 : throw new IndexOutOfRangeException();
-			private set
+			get => ((_u[index / 32] >> (index % 32)) & 1) == 1;
+			set
 			{
-				if (index > Bits || index < 0)
-					throw new IndexOutOfRangeException();
 				if (!value)
 					_u[index / 32] = _u[index / 32] & ~BigIntHelpers.Int32Masks1Bit[index % 32];
 				else
@@ -131,7 +131,7 @@ namespace MathExtensions
 					*--p = (char)(remainder + '0');
 				}
 			}
-			string s = new string(dest.TrimStart('\0').TrimStart('0'));
+			string s = new string(dest.TrimStart(stackalloc char[] { '\0', '0' }));
 			return s;
 		}
 		internal string ToStringHex()
@@ -164,26 +164,47 @@ namespace MathExtensions
 					return i;
 			return Bits - 1;
 		}
-		public static int LeadingZeroCount(UInt256 value)
+		public static int HighestBit(UInt256 value)
 		{
-			if (value == Zero) return Bits;
-			for (int i = Bits - 1; i >= 0; --i)
+			if (value == Zero) return 0;
+			int c = HighDWordIdx(value);
+			if (Lzcnt.IsSupported)
+				return c * 32 + (int)Lzcnt.LeadingZeroCount(value._u[c]);
+			else if (ArmBase.IsSupported)
+				return c * 32 + ArmBase.LeadingZeroCount(value._u[c]);
+			else
 			{
-				if (value[i])
-					return i + 1;
+				for (int i = 31; i >= 0; --i)
+				{
+					if (((value._u[c] >> i) & 1) != 0)
+						return i;
+				}
 			}
-			return Bits; //should never be reached.
+			return 0; // Should never be reached.
 		}
-
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static int GetDWordCount(UInt256 value)
+		private static int HighDWordIdx(UInt256 value)
 		{
-			for (int i = DWords - 1; i >= 0; --i)
-				if (value._u[i] != 0)
-					return i + 1;
-			return 1;
+			if (value._u[7] != 0)
+				return 7;
+			if (value._u[6] != 0)
+				return 6;
+			if (value._u[5] != 0)
+				return 5;
+			if (value._u[4] != 0)
+				return 4;
+			if (value._u[3] != 0)
+				return 3;
+			if (value._u[2] != 0)
+				return 2;
+			if (value._u[1] != 0)
+				return 1;
+			return 0;
 		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static int GetDWordCount(UInt256 value) => HighDWordIdx(value) + 1;
 
 		public int CompareTo(UInt256 other)
 		{
@@ -321,10 +342,22 @@ namespace MathExtensions
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static UInt256 ShiftLeft(UInt256 value) => new UInt256(((ulong*)value._u)[0] << 1, (((ulong*)value._u)[0] >> 63) | (((ulong*)value._u)[1] << 1), (((ulong*)value._u)[1] >> 63) | (((ulong*)value._u)[2] << 1), (((ulong*)value._u)[2] >> 63) | (((ulong*)value._u)[3] << 1));
-		public static UInt256 ShiftLeft(UInt256 value, int bits)
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static UInt256 ShiftRight(UInt256 value) => new UInt256((((ulong*)value._u)[0] >> 1) | (((ulong*)value._u)[1] << 63), (((ulong*)value._u)[1] >> 1) | (((ulong*)value._u)[2] << 63), (((ulong*)value._u)[2] >> 1) | (((ulong*)value._u)[3] << 63), ((ulong*)value._u)[3] >> 1);
+
+		public static UInt256 operator +(UInt256 left, UInt256 right) => Add(left, right);
+		public static UInt256 operator -(UInt256 left, UInt256 right) => Subtract(left, right);
+		public static UInt256 operator *(UInt256 left, UInt256 right) => Multiply(left, right);
+		public static UInt256 operator /(UInt256 left, UInt256 right) => Divide(left, right);
+		public static UInt256 operator /(UInt256 left, uint right) => Divide(left, right);
+		public static UInt256 operator %(UInt256 left, UInt256 right) => Remainder(left, right);
+		public static UInt256 operator %(UInt256 left, uint right) => Remainder(left, right);
+		public static UInt256 operator ++(UInt256 value) => Add(value, 1);
+		public static UInt256 operator --(UInt256 value) => Subtract(value, 1);
+		public static UInt256 operator <<(UInt256 value, int bits)
 		{
-			if (bits < 0)
-				return ShiftRight(value, -bits);
+			bits &= 0xFF;
 			int ls = bits % 64;
 			int rs = 64 - ls;
 			int b = bits / 64;
@@ -352,13 +385,9 @@ namespace MathExtensions
 				};
 			}
 		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static UInt256 ShiftRight(UInt256 value) => new UInt256((((ulong*)value._u)[0] >> 1) | (((ulong*)value._u)[1] << 63), (((ulong*)value._u)[1] >> 1) | (((ulong*)value._u)[2] << 63), (((ulong*)value._u)[2] >> 1) | (((ulong*)value._u)[3] << 63), ((ulong*)value._u)[3] >> 1);
-		public static UInt256 ShiftRight(UInt256 value, int bits)
+		public static UInt256 operator >>(UInt256 value, int bits)
 		{
-			if (bits < 0)
-				return ShiftLeft(value, -bits);
+			bits &= 0xFF;
 			int rs = bits % 64;
 			int ls = 64 - rs;
 			int b = bits / 64;
@@ -386,22 +415,166 @@ namespace MathExtensions
 				};
 			}
 		}
+		public static UInt256 operator ~(UInt256 value)
+		{
 
-		public static UInt256 operator +(UInt256 left, UInt256 right) => Add(left, right);
-		public static UInt256 operator -(UInt256 left, UInt256 right) => Subtract(left, right);
-		public static UInt256 operator *(UInt256 left, UInt256 right) => Multiply(left, right);
-		public static UInt256 operator /(UInt256 left, UInt256 right) => Divide(left, right);
-		public static UInt256 operator /(UInt256 left, uint right) => Divide(left, right);
-		public static UInt256 operator %(UInt256 left, UInt256 right) => Remainder(left, right);
-		public static UInt256 operator %(UInt256 left, uint right) => Remainder(left, right);
-		public static UInt256 operator ++(UInt256 value) => Add(value, 1);
-		public static UInt256 operator --(UInt256 value) => Subtract(value, 1);
-		public static UInt256 operator <<(UInt256 value, int bits) => ShiftLeft(value, bits);
-		public static UInt256 operator >>(UInt256 value, int bits) => ShiftRight(value, bits);
-		public static UInt256 operator ~(UInt256 value) => new UInt256(~value._u[0], ~value._u[1], ~value._u[2], ~value._u[3], ~value._u[4], ~value._u[5], ~value._u[6], ~value._u[7]);
-		public static UInt256 operator &(UInt256 left, UInt256 right) => new UInt256(left._u[0] & right._u[0], left._u[1] & right._u[1], left._u[2] & right._u[2], left._u[3] & right._u[3], left._u[4] & right._u[4], left._u[5] & right._u[5], left._u[6] & right._u[6], left._u[7] & right._u[7]);
-		public static UInt256 operator ^(UInt256 left, UInt256 right) => new UInt256(left._u[0] ^ right._u[0], left._u[1] ^ right._u[1], left._u[2] ^ right._u[2], left._u[3] ^ right._u[3], left._u[4] ^ right._u[4], left._u[5] ^ right._u[5], left._u[6] ^ right._u[6], left._u[7] ^ right._u[7]);
-		public static UInt256 operator |(UInt256 left, UInt256 right) => new UInt256(left._u[0] | right._u[0], left._u[1] | right._u[1], left._u[2] | right._u[2], left._u[3] | right._u[3], left._u[4] | right._u[4], left._u[5] | right._u[5], left._u[6] | right._u[6], left._u[7] | right._u[7]);
+			{
+				UInt256 o;
+				if (Avx.IsSupported)
+				{
+					Vector256<uint> v = Avx.LoadVector256((uint*)&value);
+					Vector256<uint> ov;
+					if (Avx2.IsSupported)
+						ov = Avx2.Xor(v, Vector256<uint>.AllBitsSet);
+					else
+						ov = Avx.Xor(v.AsDouble(), Vector256<double>.AllBitsSet).AsUInt32();
+					Avx.Store((uint*)&o, ov);
+				}
+				else if (Sse2.IsSupported)
+				{
+					Vector128<uint> vl = Sse2.LoadVector128((uint*)&value);
+					Vector128<uint> vh = Sse2.LoadVector128((uint*)&value + 4);
+					Vector128<uint> ovl = Sse2.Xor(vl, Vector128<uint>.AllBitsSet);
+					Vector128<uint> ovh = Sse2.Xor(vh, Vector128<uint>.AllBitsSet);
+					Sse2.Store((uint*)&o, ovl);
+					Sse2.Store((uint*)&o + 4, ovh);
+				}
+				else if (AdvSimd.IsSupported)
+				{
+					Vector128<uint> vl = AdvSimd.LoadVector128((uint*)&value);
+					Vector128<uint> vh = AdvSimd.LoadVector128((uint*)&value + 4);
+					Vector128<uint> ovl = AdvSimd.Not(vl);
+					Vector128<uint> ovh = AdvSimd.Not(vh);
+					AdvSimd.Store((uint*)&o, ovl);
+					AdvSimd.Store((uint*)&o + 4, ovh);
+				}
+				else
+					return new UInt256(~value._u[0], ~value._u[1], ~value._u[2], ~value._u[3], ~value._u[4], ~value._u[5], ~value._u[6], ~value._u[7]);
+				return o;
+			}
+		}
+		public static UInt256 operator &(UInt256 left, UInt256 right)
+		{
+			UInt256 o;
+			if (Avx.IsSupported)
+			{
+				Vector256<uint> lv = Avx.LoadVector256((uint*)&left);
+				Vector256<uint> rv = Avx.LoadVector256((uint*)&right);
+				Vector256<uint> ov;
+				if (Avx2.IsSupported)
+					ov = Avx2.And(lv, rv);
+				else
+					ov = Avx.And(lv.AsDouble(), rv.AsDouble()).AsUInt32();
+				Avx.Store((uint*)&o, ov);
+			}
+			else if (Sse2.IsSupported)
+			{
+				Vector128<uint> lvl = Sse2.LoadVector128((uint*)&left);
+				Vector128<uint> rvl = Sse2.LoadVector128((uint*)&right);
+				Vector128<uint> lvh = Sse2.LoadVector128((uint*)&left + 4);
+				Vector128<uint> rvh = Sse2.LoadVector128((uint*)&right + 4);
+				Vector128<uint> ovl = Sse2.And(lvl, rvl);
+				Vector128<uint> ovh = Sse2.And(lvh, rvh);
+				Sse2.Store((uint*)&o, ovl);
+				Sse2.Store((uint*)&o + 4, ovh);
+			}
+			else if (AdvSimd.IsSupported)
+			{
+				Vector128<uint> lvl = AdvSimd.LoadVector128((uint*)&left);
+				Vector128<uint> rvl = AdvSimd.LoadVector128((uint*)&right);
+				Vector128<uint> lvh = AdvSimd.LoadVector128((uint*)&left + 4);
+				Vector128<uint> rvh = AdvSimd.LoadVector128((uint*)&right + 4);
+				Vector128<uint> ovl = AdvSimd.And(lvl, rvl);
+				Vector128<uint> ovh = AdvSimd.And(lvh, rvh);
+				AdvSimd.Store((uint*)&o, ovl);
+				AdvSimd.Store((uint*)&o + 4, ovh);
+			}
+			else
+				return new UInt256(left._u[0] & right._u[0], left._u[1] & right._u[1], left._u[2] & right._u[2], left._u[3] & right._u[3], left._u[4] & right._u[4], left._u[5] & right._u[5], left._u[6] & right._u[6], left._u[7] & right._u[7]);
+			return o;
+		}
+		public static UInt256 operator ^(UInt256 left, UInt256 right)
+		{
+			UInt256 o;
+			if (Avx.IsSupported)
+			{
+				Vector256<uint> lv = Avx.LoadVector256((uint*)&left);
+				Vector256<uint> rv = Avx.LoadVector256((uint*)&right);
+				Vector256<uint> ov;
+				if (Avx2.IsSupported)
+					ov = Avx2.Xor(lv, rv);
+				else
+					ov = Avx.Xor(lv.AsDouble(), rv.AsDouble()).AsUInt32();
+				Avx.Store((uint*)&o, ov);
+			}
+			else if (Sse2.IsSupported)
+			{
+				Vector128<uint> lvl = Sse2.LoadVector128((uint*)&left);
+				Vector128<uint> rvl = Sse2.LoadVector128((uint*)&right);
+				Vector128<uint> lvh = Sse2.LoadVector128((uint*)&left + 4);
+				Vector128<uint> rvh = Sse2.LoadVector128((uint*)&right + 4);
+				Vector128<uint> ovl = Sse2.Xor(lvl, rvl);
+				Vector128<uint> ovh = Sse2.Xor(lvh, rvh);
+				Sse2.Store((uint*)&o, ovl);
+				Sse2.Store((uint*)&o + 4, ovh);
+			}
+			else if (AdvSimd.IsSupported)
+			{
+				Vector128<uint> lvl = AdvSimd.LoadVector128((uint*)&left);
+				Vector128<uint> rvl = AdvSimd.LoadVector128((uint*)&right);
+				Vector128<uint> lvh = AdvSimd.LoadVector128((uint*)&left + 4);
+				Vector128<uint> rvh = AdvSimd.LoadVector128((uint*)&right + 4);
+				Vector128<uint> ovl = AdvSimd.Xor(lvl, rvl);
+				Vector128<uint> ovh = AdvSimd.Xor(lvh, rvh);
+				AdvSimd.Store((uint*)&o, ovl);
+				AdvSimd.Store((uint*)&o + 4, ovh);
+			}
+			else
+				return new UInt256(left._u[0] ^ right._u[0], left._u[1] ^ right._u[1], left._u[2] ^ right._u[2], left._u[3] ^ right._u[3], left._u[4] ^ right._u[4], left._u[5] ^ right._u[5], left._u[6] ^ right._u[6], left._u[7] ^ right._u[7]);
+			return o;
+		}
+		public static UInt256 operator |(UInt256 left, UInt256 right)
+		{
+			{
+				UInt256 o;
+				if (Avx.IsSupported)
+				{
+					Vector256<uint> lv = Avx.LoadVector256((uint*)&left);
+					Vector256<uint> rv = Avx.LoadVector256((uint*)&right);
+					Vector256<uint> ov;
+					if (Avx2.IsSupported)
+						ov = Avx2.Or(lv, rv);
+					else
+						ov = Avx.Or(lv.AsDouble(), rv.AsDouble()).AsUInt32();
+					Avx.Store((uint*)&o, ov);
+				}
+				else if (Sse2.IsSupported)
+				{
+					Vector128<uint> lvl = Sse2.LoadVector128((uint*)&left);
+					Vector128<uint> rvl = Sse2.LoadVector128((uint*)&right);
+					Vector128<uint> lvh = Sse2.LoadVector128((uint*)&left + 4);
+					Vector128<uint> rvh = Sse2.LoadVector128((uint*)&right + 4);
+					Vector128<uint> ovl = Sse2.Or(lvl, rvl);
+					Vector128<uint> ovh = Sse2.Or(lvh, rvh);
+					Sse2.Store((uint*)&o, ovl);
+					Sse2.Store((uint*)&o + 4, ovh);
+				}
+				else if (AdvSimd.IsSupported)
+				{
+					Vector128<uint> lvl = AdvSimd.LoadVector128((uint*)&left);
+					Vector128<uint> rvl = AdvSimd.LoadVector128((uint*)&right);
+					Vector128<uint> lvh = AdvSimd.LoadVector128((uint*)&left + 4);
+					Vector128<uint> rvh = AdvSimd.LoadVector128((uint*)&right + 4);
+					Vector128<uint> ovl = AdvSimd.Or(lvl, rvl);
+					Vector128<uint> ovh = AdvSimd.Or(lvh, rvh);
+					AdvSimd.Store((uint*)&o, ovl);
+					AdvSimd.Store((uint*)&o + 4, ovh);
+				}
+				else
+					return new UInt256(left._u[0] | right._u[0], left._u[1] | right._u[1], left._u[2] | right._u[2], left._u[3] | right._u[3], left._u[4] | right._u[4], left._u[5] | right._u[5], left._u[6] | right._u[6], left._u[7] | right._u[7]);
+				return o;
+			}
+		}
 
 		public static bool operator ==(UInt256 left, UInt256 right) => left.Equals(right);
 		public static bool operator !=(UInt256 left, UInt256 right) => !(left == right);

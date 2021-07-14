@@ -11,7 +11,7 @@ namespace MathExtensions
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static bool Equals(Quadruple left, Quadruple right) => NeitherNaN(left, right) && ((long*)left._b)[0] == ((long*)right._b)[0] && ((long*)left._b)[1] == ((long*)right._b)[1];
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static int GetHashCode(Quadruple quad) => HashCode.Combine(((long*)quad._b)[0], ((long*)quad._b)[1]);
+		private static int GetHashCode(Quadruple quad) => IsNaN(quad) ? int.MinValue : HashCode.Combine(((long*)quad._b)[0], ((long*)quad._b)[1]);
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static short GetExp(Quadruple quad) => (short)(((short*)quad._b)[7] & 0x7fff);
@@ -31,7 +31,7 @@ namespace MathExtensions
 			UInt256 mul = (UInt256)lMantissa * rMantissa;
 			byte grs = (byte)(((mul._u[3] & 0xC000U) >> 29) | (((mul & _stickyMulMask) != 0) ? 1U : 0U));
 			UInt128 m = RoundToEven((UInt128)(mul >> 112), grs);
-			int shift = UInt128.GetHighestBit(m) - 112;
+			int shift = UInt128.HighestBit(m) - 112;
 			exponent += shift;
 			m >>= shift;
 			if (exponent < -0x4000)
@@ -77,7 +77,7 @@ namespace MathExtensions
 			//bool roundingBit = div[15];
 			byte grs = (byte)(((((ushort*)div._u)[0] & 0xC000U) >> 13) | (((div & _stickyDivMask) != 0) ? 1U : 0U));
 			UInt128 d = RoundToEven((UInt128)(div >> 16), grs);
-			int shift = UInt128.GetHighestBit(d) - 112;
+			int shift = UInt128.HighestBit(d) - 112;
 			exponent += shift;
 			d >>= shift;
 			if (exponent < -0x4000)
@@ -122,7 +122,7 @@ namespace MathExtensions
 				sum = UInt256.TwosComplement(sum);
 			byte grs = (byte)(((sum._u[3] & 0xC000_0000U) >> 29) | ((sum & _stickyAddSubMask) != 0 ? 1U : 0U));
 			UInt128 s = RoundToEven((UInt128)(sum >> 128), grs);
-			int highBit = UInt128.GetHighestBit(s);
+			int highBit = UInt128.HighestBit(s);
 			if (highBit == 0)
 				return Zero;
 			int shift = highBit - SignificandBits;
@@ -170,7 +170,7 @@ namespace MathExtensions
 				difference = UInt256.TwosComplement(difference);
 			byte grs = (byte)(((difference._u[3] & 0xC000_0000U) >> 29) | ((difference & _stickyAddSubMask) != 0 ? 1U : 0U));
 			UInt128 d = RoundToEven((UInt128)(difference >> 128), grs);
-			int highBit = UInt128.GetHighestBit(d);
+			int highBit = UInt128.HighestBit(d);
 			if (highBit == 0)
 				return Zero;
 			int shift = highBit - SignificandBits;

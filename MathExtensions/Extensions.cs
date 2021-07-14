@@ -21,4 +21,15 @@ namespace MathExtensions
 				return string.Join("", byteArray);
 		}
 	}
+
+	public static class RandomExtensions
+	{
+		public static Quadruple NextQuadruple(this Random random)
+		{
+			Span<byte> b = stackalloc byte[14];
+			random.NextBytes(b);
+			UInt128 s = new UInt128(b);
+			throw new NotImplementedException();
+		}
+	}
 }

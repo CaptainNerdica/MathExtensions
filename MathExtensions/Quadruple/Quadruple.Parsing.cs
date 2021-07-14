@@ -307,7 +307,7 @@ namespace MathExtensions
 			else
 			{
 				Debug.Assert(mantissa != 0);
-				mantissaHighBitIdx = (uint)UInt128.LeadingZeroCount(mantissa);
+				mantissaHighBitIdx = (uint)UInt128.HighestBit(mantissa);
 			}
 
 			int length = (int)Dragon4(mantissa, exponent, mantissaHighBitIdx, hasUnequalMargins, cutoffNumber, isSignificantDigits, number.Digits, out int decimalExponent);

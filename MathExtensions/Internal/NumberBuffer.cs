@@ -38,8 +38,10 @@ namespace MathExtensions.Internal
         }
 
         [Conditional("DEBUG")]
-        public void CheckConsistency()
-        {
+#pragma warning disable CA1822 // Mark members as static
+		public void CheckConsistency()
+#pragma warning restore CA1822 // Mark members as static
+		{
 #if DEBUG
             Debug.Assert((Kind == NumberBufferKind.Integer) || (Kind == NumberBufferKind.Decimal) || (Kind == NumberBufferKind.FloatingPoint));
             Debug.Assert(Digits[0] != '0', "Leading zeros should never be stored in a Number");

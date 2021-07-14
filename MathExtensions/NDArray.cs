@@ -96,15 +96,15 @@ namespace MathExtensions
 		#endregion
 
 		public override void Fill(T value) => Array.Fill(_items, value);
-		public override NDArray<TCast> Cast<TCast>() => new NDArray<TCast>(Shape, _items.Cast<TCast>());
+		public override NDArray<TCast> Cast<TCast>() where TCast : struct => new NDArray<TCast>(Shape, _items.Cast<TCast>());
 
-		public NDArray<TOut> Operation<TOut>(Func<T, TOut> func) where TOut : struct
+		public NDArray<TOut> Operation<TOut>(Func<T, TOut> func)
 		{
 			NDArray<TOut> output = new NDArray<TOut>(Shape);
 			Parallel.For(0, Size, i => output._items[i] = func(_items[i]));
 			return output;
 		}
-		public NDArray<TOut> Operation<TOther, TOut>(NDArray<TOther> other, Func<T, TOther, TOut> func) where TOther : struct where TOut : struct
+		public NDArray<TOut> Operation<TOther, TOut>(NDArray<TOther> other, Func<T, TOther, TOut> func)
 		{
 			if (Shape != other.Shape)
 				throw new ArgumentException("Shapes are unequal", nameof(other));
@@ -112,7 +112,7 @@ namespace MathExtensions
 			Parallel.For(0, Size, i => output._items[i] = func(_items[i], other._items[i]));
 			return output;
 		}
-		public NDArray<TOut> Operation<TOther, TOut>(NDArray<TOther> other, Func<T, TOther, int, TOut> func) where TOther : struct where TOut : struct
+		public NDArray<TOut> Operation<TOther, TOut>(NDArray<TOther> other, Func<T, TOther, int, TOut> func)
 		{
 			if (Shape != other.Shape)
 				throw new ArgumentException("Shapes are unequal", nameof(other));
@@ -120,7 +120,7 @@ namespace MathExtensions
 			Parallel.For(0, Size, i => output._items[i] = func(_items[i], other._items[i], i));
 			return output;
 		}
-		public NDArray<TOut> Operation<TOther, TOut>(NDArray<TOther> other, Func<T, TOther, Index, TOut> func) where TOther : struct where TOut : struct
+		public NDArray<TOut> Operation<TOther, TOut>(NDArray<TOther> other, Func<T, TOther, Index, TOut> func)
 		{
 			if (Shape != other.Shape)
 				throw new ArgumentException("Shapes are unequal", nameof(other));
@@ -128,7 +128,6 @@ namespace MathExtensions
 			Parallel.For(0, Size, i => output._items[i] = func(_items[i], other._items[i], Index.FromLinear(i, Shape)));
 			return output;
 		}
-
 
 		public NDArray<TOut> Add<TOther, TOut>(NDArray<TOther> other)
 		{

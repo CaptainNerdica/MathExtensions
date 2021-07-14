@@ -23,7 +23,7 @@ namespace MathExtensions
 			UInt128 s = GetSignificand(x);
 			UInt256 iSqrt = ISqrt(((UInt256)s) << 112);
 			s = (UInt128)iSqrt;
-			int shift = UInt128.GetHighestBit(s) - 112;
+			int shift = UInt128.HighestBit(s) - 112;
 			newExp -= shift;
 			if (newExp <= MinExponent)
 				return Zero;
@@ -43,7 +43,7 @@ namespace MathExtensions
 			res = UInt128.Zero;
 			bit = _pow4_128;
 			while (bit > x)
-				bit = UInt128.ShiftRight(bit, 2);
+				bit >>= 2;
 			while (bit != UInt128.Zero)
 			{
 				if (x >= res + bit)
@@ -53,7 +53,7 @@ namespace MathExtensions
 				}
 				else
 					res = UInt128.ShiftRight(res);
-				bit = UInt128.ShiftRight(bit, 2);
+				bit >>= 2;
 			}
 			return res;
 		}
@@ -67,7 +67,7 @@ namespace MathExtensions
 			res = UInt256.Zero;
 			bit = _pow4_256;
 			while (bit > x)
-				bit = UInt256.ShiftRight(bit, 2);
+				bit >>= 2;
 			while (bit != UInt256.Zero)
 			{
 				if (x >= res + bit)
@@ -77,7 +77,7 @@ namespace MathExtensions
 				}
 				else
 					res = UInt256.ShiftRight(res);
-				bit = UInt256.ShiftRight(bit, 2);
+				bit >>= 2;
 			}
 			return res;
 		}

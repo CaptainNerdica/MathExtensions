@@ -35,7 +35,6 @@ namespace MathExtensions
 		public float Phase => MathF.Atan2(_imag, _real);
 		public float Real => _real;
 
-
 		public ComplexF(float real, float imaginary)
 		{
 			_real = real;
@@ -45,7 +44,6 @@ namespace MathExtensions
 		public static bool IsFinite(ComplexF value) => float.IsFinite(value._real) && float.IsFinite(value._imag);
 		public static bool IsInfinite(ComplexF value) => float.IsInfinity(value._real) || float.IsInfinity(value._imag);
 		public static bool IsNaN(ComplexF value) => float.IsNaN(value._real) || float.IsNaN(value._imag);
-
 
 		#region Addition
 		public static ComplexF Add(ComplexF left, ComplexF right) => new ComplexF(left._real + right._real, left._imag + right._imag);
@@ -230,7 +228,6 @@ namespace MathExtensions
 				float ratio = small / large;
 				return large * MathF.Sqrt(1.0f + ratio * ratio);
 			}
-
 		}
 		#endregion
 		#region Trig Functions

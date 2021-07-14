@@ -4,12 +4,13 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.Arm;
+using System.Runtime.Intrinsics.X86;
 using System.Text;
 
 namespace MathExtensions
 {
-	[ReadOnly(true)]
-	[DebuggerDisplay("{ToString()}")]
 	public unsafe struct UInt128 : IEquatable<UInt128>, IComparable<UInt128>
 	{
 		internal const int Bits = 128;
@@ -17,20 +18,18 @@ namespace MathExtensions
 		internal const int Words = 8;
 		internal const int DWords = 4;
 		internal const int QWords = 2;
-		internal fixed uint _u[4];
+		public fixed uint _u[4];
 
 		public static readonly UInt128 MaxValue = new UInt128(uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue);
-		public static readonly UInt128 MinValue = 0;
-		public static readonly UInt128 Zero = 0;
+		public static readonly UInt128 MinValue = default;
+		public static readonly UInt128 Zero = default;
 		public static readonly UInt128 One = 1;
 
 		internal bool this[int index]
 		{
-			get => index < Bits && index >= 0 ? ((_u[index / 32] >> (index % 32)) & 1) == 1 : throw new IndexOutOfRangeException();
+			get => ((_u[index / 32] >> (index % 32)) & 1) == 1;
 			private set
 			{
-				if (index > Bits || index < 0)
-					throw new IndexOutOfRangeException();
 				if (!value)
 					_u[index / 32] = _u[index / 32] & ~BigIntHelpers.Int32Masks1Bit[index % 32];
 				else
@@ -108,7 +107,7 @@ namespace MathExtensions
 					*--p = (char)(remainder + '0');
 				}
 			}
-			string s = new string(dest.TrimStart('\0').TrimStart('0'));
+			string s = new string(dest.TrimStart(stackalloc char[] { '\0', '0' }));
 			return s;
 		}
 		internal string ToStringHex()
@@ -127,43 +126,40 @@ namespace MathExtensions
 					return i + 1;
 			return 1;
 		}
-		internal static int GetHighestBit(UInt128 value)
-		{
-			for (int i = Bits - 1; i >= 0; --i)
-				if (((int)(value._u[i / 32] >> (i % 32)) & 1) == 1)
-					return i;
-			return 0;
-		}
-		internal static int GetLowestBit(UInt128 value)
-		{
-			for (int i = 0; i < Bits; ++i)
-				if (((int)(value._u[i / 32] >> (i % 32)) & 1) == 1)
-					return i;
-			return Bits - 1;
-		}
 
-		public static int LeadingZeroCount(UInt128 value)
+		public static int HighestBit(UInt128 value)
 		{
-			if (value == Zero) return Bits;
-			for (int i = Bits - 1; i >= 0; --i)
+			if (value == Zero) return 0;
+			int c = HighDWordIdx(value);
+			if (Lzcnt.IsSupported)
+				return c * 32 + (int)Lzcnt.LeadingZeroCount(value._u[c]);
+			else if (ArmBase.IsSupported)
+				return c * 32 + ArmBase.LeadingZeroCount(value._u[c]);
+			else
 			{
-				if (value[i])
-					return i + 1;
+				for (int i = 31; i >= 0; --i)
+				{
+					if (((value._u[c] >> i) & 1) != 0)
+						return i;
+				}
 			}
-			return Bits; //should never be reached.
+			return 0; // Should never be reached.
 		}
-
-
-
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static int GetDWordCount(UInt128 value)
+		private static int HighDWordIdx(UInt128 value)
 		{
-			for (int i = DWords - 1; i >= 0; --i)
-				if (value._u[i] != 0)
-					return i + 1;
-			return 1;
+			if (value._u[3] != 0)
+				return 3;
+			if (value._u[2] != 0)
+				return 2;
+			if (value._u[1] != 0)
+				return 1;
+			return 0;
 		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static int GetDWordCount(UInt128 value) => HighDWordIdx(value) + 1;
 
 		public int CompareTo(UInt128 other)
 		{
@@ -297,10 +293,22 @@ namespace MathExtensions
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static UInt128 ShiftLeft(UInt128 value) => new UInt128(((ulong*)value._u)[0] << 1, (((ulong*)value._u)[0] >> 63) | (((ulong*)value._u)[1] << 1));
-		public static UInt128 ShiftLeft(UInt128 value, int bits)
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static UInt128 ShiftRight(UInt128 value) => new UInt128((((ulong*)value._u)[0] >> 1) | (((ulong*)value._u)[1] << 63), ((ulong*)value._u)[1] >> 1);
+
+		public static UInt128 operator +(UInt128 left, UInt128 right) => Add(left, right);
+		public static UInt128 operator -(UInt128 left, UInt128 right) => Subtract(left, right);
+		public static UInt128 operator *(UInt128 left, UInt128 right) => Multiply(left, right);
+		public static UInt128 operator /(UInt128 left, UInt128 right) => Divide(left, right);
+		public static UInt128 operator /(UInt128 left, uint right) => Divide(left, right);
+		public static UInt128 operator %(UInt128 left, UInt128 right) => Remainder(left, right);
+		public static UInt128 operator %(UInt128 left, uint right) => Remainder(left, right);
+		public static UInt128 operator ++(UInt128 value) => Add(value, 1);
+		public static UInt128 operator --(UInt128 value) => Subtract(value, 1);
+		public static UInt128 operator <<(UInt128 value, int bits)
 		{
-			if (bits < 0)
-				return ShiftRight(value, -bits);
+			bits &= 0x7F;
 			int ls = bits % 64;
 			int rs = 64 - ls;
 			int b = bits / 64;
@@ -324,13 +332,9 @@ namespace MathExtensions
 				};
 			}
 		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static UInt128 ShiftRight(UInt128 value) => new UInt128((((ulong*)value._u)[0] >> 1) | (((ulong*)value._u)[1] << 63), ((ulong*)value._u)[1] >> 1);
-		public static UInt128 ShiftRight(UInt128 value, int bits)
+		public static UInt128 operator >>(UInt128 value, int bits)
 		{
-			if (bits < 0)
-				return ShiftLeft(value, -bits);
+			bits &= 0x7F;
 			int rs = bits % 64;
 			int ls = 64 - rs;
 			int b = bits / 64;
@@ -354,22 +358,92 @@ namespace MathExtensions
 				};
 			}
 		}
-
-		public static UInt128 operator +(UInt128 left, UInt128 right) => Add(left, right);
-		public static UInt128 operator -(UInt128 left, UInt128 right) => Subtract(left, right);
-		public static UInt128 operator *(UInt128 left, UInt128 right) => Multiply(left, right);
-		public static UInt128 operator /(UInt128 left, UInt128 right) => Divide(left, right);
-		public static UInt128 operator /(UInt128 left, uint right) => Divide(left, right);
-		public static UInt128 operator %(UInt128 left, UInt128 right) => Remainder(left, right);
-		public static UInt128 operator %(UInt128 left, uint right) => Remainder(left, right);
-		public static UInt128 operator ++(UInt128 value) => Add(value, 1);
-		public static UInt128 operator --(UInt128 value) => Subtract(value, 1);
-		public static UInt128 operator <<(UInt128 value, int bits) => ShiftLeft(value, bits);
-		public static UInt128 operator >>(UInt128 value, int bits) => ShiftRight(value, bits);
-		public static UInt128 operator ~(UInt128 value) => new UInt128(~value._u[0], ~value._u[1], ~value._u[2], ~value._u[3]);
-		public static UInt128 operator &(UInt128 left, UInt128 right) => new UInt128(left._u[0] & right._u[0], left._u[1] & right._u[1], left._u[2] & right._u[2], left._u[3] & right._u[3]);
-		public static UInt128 operator ^(UInt128 left, UInt128 right) => new UInt128(left._u[0] ^ right._u[0], left._u[1] ^ right._u[1], left._u[2] ^ right._u[2], left._u[3] ^ right._u[3]);
-		public static UInt128 operator |(UInt128 left, UInt128 right) => new UInt128(left._u[0] | right._u[0], left._u[1] | right._u[1], left._u[2] | right._u[2], left._u[3] | right._u[3]);
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static UInt128 operator ~(UInt128 value)
+		{
+			UInt128 o;
+			if (Sse2.IsSupported)
+			{
+				Vector128<uint> v = Sse2.LoadVector128((uint*)&value);
+				Vector128<uint> ov = Sse2.Xor(v, Vector128<uint>.AllBitsSet);
+				Sse2.Store((uint*)&o, ov);
+			}
+			else if (AdvSimd.IsSupported)
+			{
+				Vector128<uint> v = AdvSimd.LoadVector128((uint*)&value);
+				Vector128<uint> ov = AdvSimd.Xor(v, Vector128<uint>.AllBitsSet);
+				AdvSimd.Store((uint*)&o, ov);
+			}
+			else
+				return new UInt128(~value._u[0], ~value._u[1], ~value._u[2], ~value._u[3]);
+			return o;
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static UInt128 operator &(UInt128 left, UInt128 right)
+		{
+			UInt128 o;
+			if (Sse2.IsSupported)
+			{
+				Vector128<uint> lv = Sse2.LoadVector128((uint*)&left);
+				Vector128<uint> rv = Sse2.LoadVector128((uint*)&right);
+				Vector128<uint> ov = Sse2.And(lv, rv);
+				Sse2.Store((uint*)&o, ov);
+			}
+			else if (AdvSimd.IsSupported)
+			{
+				Vector128<uint> lv = AdvSimd.LoadVector128((uint*)&left);
+				Vector128<uint> rv = AdvSimd.LoadVector128((uint*)&right);
+				Vector128<uint> ov = AdvSimd.And(lv, rv);
+				AdvSimd.Store((uint*)&o, ov);
+			}
+			else
+				return new UInt128(left._u[0] & right._u[0], left._u[1] & right._u[1], left._u[2] & right._u[2], left._u[3] & right._u[3]);
+			return o;
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static UInt128 operator ^(UInt128 left, UInt128 right)
+		{
+			UInt128 o;
+			if (Sse2.IsSupported)
+			{
+				Vector128<uint> lv = Sse2.LoadVector128((uint*)&left);
+				Vector128<uint> rv = Sse2.LoadVector128((uint*)&right);
+				Vector128<uint> ov = Sse2.Xor(lv, rv);
+				Sse2.Store((uint*)&o, ov);
+			}
+			else if (AdvSimd.IsSupported)
+			{
+				Vector128<uint> lv = AdvSimd.LoadVector128((uint*)&left);
+				Vector128<uint> rv = AdvSimd.LoadVector128((uint*)&right);
+				Vector128<uint> ov = AdvSimd.Xor(lv, rv);
+				AdvSimd.Store((uint*)&o, ov);
+			}
+			else
+				return new UInt128(left._u[0] ^ right._u[0], left._u[1] ^ right._u[1], left._u[2] ^ right._u[2], left._u[3] ^ right._u[3]);
+			return o;
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static UInt128 operator |(UInt128 left, UInt128 right)
+		{
+			UInt128 o;
+			if (Sse2.IsSupported)
+			{
+				Vector128<uint> lv = Sse2.LoadVector128((uint*)&left);
+				Vector128<uint> rv = Sse2.LoadVector128((uint*)&right);
+				Vector128<uint> ov = Sse2.Xor(lv, rv);
+				Sse2.Store((uint*)&o, ov);
+			}
+			else if (AdvSimd.IsSupported)
+			{
+				Vector128<uint> lv = AdvSimd.LoadVector128((uint*)&left);
+				Vector128<uint> rv = AdvSimd.LoadVector128((uint*)&right);
+				Vector128<uint> ov = AdvSimd.Xor(lv, rv);
+				AdvSimd.Store((uint*)&o, ov);
+			}
+			else
+				return new UInt128(left._u[0] | right._u[0], left._u[1] | right._u[1], left._u[2] | right._u[2], left._u[3] | right._u[3]);
+			return o;
+		}
 
 		public static bool operator ==(UInt128 left, UInt128 right) => left.Equals(right);
 		public static bool operator !=(UInt128 left, UInt128 right) => !(left == right);

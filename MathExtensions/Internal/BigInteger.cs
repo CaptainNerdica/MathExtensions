@@ -169,186 +169,186 @@ namespace MathExtensions.Internal
 			return (lastIndex * BitsPerBlock) + CountSignificantBits(value._blocks[lastIndex]);
 		}
 
-		public static void DivRem(ref BigInteger lhs, ref BigInteger rhs, out BigInteger quo, out BigInteger rem)
-		{
-			// This is modified from the libraries BigIntegerCalculator.DivRem.cs implementation:
-			// https://github.com/dotnet/runtime/blob/master/src/libraries/System.Runtime.Numerics/src/System/Numerics/BigIntegerCalculator.DivRem.cs
+		//public static void DivRem(ref BigInteger lhs, ref BigInteger rhs, out BigInteger quo, out BigInteger rem)
+		//{
+		//	// This is modified from the libraries BigIntegerCalculator.DivRem.cs implementation:
+		//	// https://github.com/dotnet/runtime/blob/master/src/libraries/System.Runtime.Numerics/src/System/Numerics/BigIntegerCalculator.DivRem.cs
 
-			Debug.Assert(!rhs.IsZero());
+		//	Debug.Assert(!rhs.IsZero());
 
-			if (lhs.IsZero())
-			{
-				SetZero(out quo);
-				SetZero(out rem);
-				return;
-			}
+		//	if (lhs.IsZero())
+		//	{
+		//		SetZero(out quo);
+		//		SetZero(out rem);
+		//		return;
+		//	}
 
-			int lhsLength = lhs._length;
-			int rhsLength = rhs._length;
+		//	int lhsLength = lhs._length;
+		//	int rhsLength = rhs._length;
 
-			if ((lhsLength == 1) && (rhsLength == 1))
-			{
-				(uint quotient, uint remainder) = Math.DivRem(lhs._blocks[0], rhs._blocks[0]);
-				SetUInt32(out quo, quotient);
-				SetUInt32(out rem, remainder);
-				return;
-			}
+		//	if ((lhsLength == 1) && (rhsLength == 1))
+		//	{
+		//		(uint quotient, uint remainder) = Math.DivRem(lhs._blocks[0], rhs._blocks[0]);
+		//		SetUInt32(out quo, quotient);
+		//		SetUInt32(out rem, remainder);
+		//		return;
+		//	}
 
-			if (rhsLength == 1)
-			{
-				// We can make the computation much simpler if the rhs is only one block
+		//	if (rhsLength == 1)
+		//	{
+		//		// We can make the computation much simpler if the rhs is only one block
 
-				int quoLength = lhsLength;
+		//		int quoLength = lhsLength;
 
-				ulong rhsValue = rhs._blocks[0];
-				ulong carry = 0;
+		//		ulong rhsValue = rhs._blocks[0];
+		//		ulong carry = 0;
 
-				for (int i = quoLength - 1; i >= 0; i--)
-				{
-					ulong value = (carry << 32) | lhs._blocks[i];
-					ulong digit;
-					(digit, carry) = Math.DivRem(value, rhsValue);
+		//		for (int i = quoLength - 1; i >= 0; i--)
+		//		{
+		//			ulong value = (carry << 32) | lhs._blocks[i];
+		//			ulong digit;
+		//			(digit, carry) = Math.DivRem(value, rhsValue);
 
-					if ((digit == 0) && (i == (quoLength - 1)))
-					{
-						quoLength--;
-					}
-					else
-					{
-						quo._blocks[i] = (uint)(digit);
-					}
-				}
+		//			if ((digit == 0) && (i == (quoLength - 1)))
+		//			{
+		//				quoLength--;
+		//			}
+		//			else
+		//			{
+		//				quo._blocks[i] = (uint)(digit);
+		//			}
+		//		}
 
-				quo._length = quoLength;
-				SetUInt32(out rem, (uint)(carry));
+		//		quo._length = quoLength;
+		//		SetUInt32(out rem, (uint)(carry));
 
-				return;
-			}
-			else if (rhsLength > lhsLength)
-			{
-				// Handle the case where we have no quotient
-				SetZero(out quo);
-				SetValue(out rem, ref lhs);
-				return;
-			}
-			else
-			{
-				int quoLength = lhsLength - rhsLength + 1;
-				SetValue(out rem, ref lhs);
-				int remLength = lhsLength;
+		//		return;
+		//	}
+		//	else if (rhsLength > lhsLength)
+		//	{
+		//		// Handle the case where we have no quotient
+		//		SetZero(out quo);
+		//		SetValue(out rem, ref lhs);
+		//		return;
+		//	}
+		//	else
+		//	{
+		//		int quoLength = lhsLength - rhsLength + 1;
+		//		SetValue(out rem, ref lhs);
+		//		int remLength = lhsLength;
 
-				// Executes the "grammar-school" algorithm for computing q = a / b.
-				// Before calculating q_i, we get more bits into the highest bit
-				// block of the divisor. Thus, guessing digits of the quotient
-				// will be more precise. Additionally we'll get r = a % b.
+		//		// Executes the "grammar-school" algorithm for computing q = a / b.
+		//		// Before calculating q_i, we get more bits into the highest bit
+		//		// block of the divisor. Thus, guessing digits of the quotient
+		//		// will be more precise. Additionally we'll get r = a % b.
 
-				uint divHi = rhs._blocks[rhsLength - 1];
-				uint divLo = rhs._blocks[rhsLength - 2];
+		//		uint divHi = rhs._blocks[rhsLength - 1];
+		//		uint divLo = rhs._blocks[rhsLength - 2];
 
-				// We measure the leading zeros of the divisor
-				int shiftLeft = BitOperations.LeadingZeroCount(divHi);
-				int shiftRight = 32 - shiftLeft;
+		//		// We measure the leading zeros of the divisor
+		//		int shiftLeft = BitOperations.LeadingZeroCount(divHi);
+		//		int shiftRight = 32 - shiftLeft;
 
-				// And, we make sure the most significant bit is set
-				if (shiftLeft > 0)
-				{
-					divHi = (divHi << shiftLeft) | (divLo >> shiftRight);
-					divLo <<= shiftLeft;
+		//		// And, we make sure the most significant bit is set
+		//		if (shiftLeft > 0)
+		//		{
+		//			divHi = (divHi << shiftLeft) | (divLo >> shiftRight);
+		//			divLo <<= shiftLeft;
 
-					if (rhsLength > 2)
-					{
-						divLo |= (rhs._blocks[rhsLength - 3] >> shiftRight);
-					}
-				}
+		//			if (rhsLength > 2)
+		//			{
+		//				divLo |= (rhs._blocks[rhsLength - 3] >> shiftRight);
+		//			}
+		//		}
 
-				// Then, we divide all of the bits as we would do it using
-				// pen and paper: guessing the next digit, subtracting, ...
-				for (int i = lhsLength; i >= rhsLength; i--)
-				{
-					int n = i - rhsLength;
-					uint t = i < lhsLength ? rem._blocks[i] : 0;
+		//		// Then, we divide all of the bits as we would do it using
+		//		// pen and paper: guessing the next digit, subtracting, ...
+		//		for (int i = lhsLength; i >= rhsLength; i--)
+		//		{
+		//			int n = i - rhsLength;
+		//			uint t = i < lhsLength ? rem._blocks[i] : 0;
 
-					ulong valHi = ((ulong)(t) << 32) | rem._blocks[i - 1];
-					uint valLo = i > 1 ? rem._blocks[i - 2] : 0;
+		//			ulong valHi = ((ulong)(t) << 32) | rem._blocks[i - 1];
+		//			uint valLo = i > 1 ? rem._blocks[i - 2] : 0;
 
-					// We shifted the divisor, we shift the dividend too
-					if (shiftLeft > 0)
-					{
-						valHi = (valHi << shiftLeft) | (valLo >> shiftRight);
-						valLo <<= shiftLeft;
+		//			// We shifted the divisor, we shift the dividend too
+		//			if (shiftLeft > 0)
+		//			{
+		//				valHi = (valHi << shiftLeft) | (valLo >> shiftRight);
+		//				valLo <<= shiftLeft;
 
-						if (i > 2)
-						{
-							valLo |= (rem._blocks[i - 3] >> shiftRight);
-						}
-					}
+		//				if (i > 2)
+		//				{
+		//					valLo |= (rem._blocks[i - 3] >> shiftRight);
+		//				}
+		//			}
 
-					// First guess for the current digit of the quotient,
-					// which naturally must have only 32 bits...
-					ulong digit = valHi / divHi;
+		//			// First guess for the current digit of the quotient,
+		//			// which naturally must have only 32 bits...
+		//			ulong digit = valHi / divHi;
 
-					if (digit > uint.MaxValue)
-					{
-						digit = uint.MaxValue;
-					}
+		//			if (digit > uint.MaxValue)
+		//			{
+		//				digit = uint.MaxValue;
+		//			}
 
-					// Our first guess may be a little bit to big
-					while (DivideGuessTooBig(digit, valHi, valLo, divHi, divLo))
-					{
-						digit--;
-					}
+		//			// Our first guess may be a little bit to big
+		//			while (DivideGuessTooBig(digit, valHi, valLo, divHi, divLo))
+		//			{
+		//				digit--;
+		//			}
 
-					if (digit > 0)
-					{
-						// Now it's time to subtract our current quotient
-						uint carry = SubtractDivisor(ref rem, n, ref rhs, digit);
+		//			if (digit > 0)
+		//			{
+		//				// Now it's time to subtract our current quotient
+		//				uint carry = SubtractDivisor(ref rem, n, ref rhs, digit);
 
-						if (carry != t)
-						{
-							Debug.Assert(carry == t + 1);
+		//				if (carry != t)
+		//				{
+		//					Debug.Assert(carry == t + 1);
 
-							// Our guess was still exactly one too high
-							carry = AddDivisor(ref rem, n, ref rhs);
-							digit--;
+		//					// Our guess was still exactly one too high
+		//					carry = AddDivisor(ref rem, n, ref rhs);
+		//					digit--;
 
-							Debug.Assert(carry == 1);
-						}
-					}
+		//					Debug.Assert(carry == 1);
+		//				}
+		//			}
 
-					// We have the digit!
-					if (quoLength != 0)
-					{
-						if ((digit == 0) && (n == (quoLength - 1)))
-						{
-							quoLength--;
-						}
-						else
-						{
-							quo._blocks[n] = (uint)(digit);
-						}
-					}
+		//			// We have the digit!
+		//			if (quoLength != 0)
+		//			{
+		//				if ((digit == 0) && (n == (quoLength - 1)))
+		//				{
+		//					quoLength--;
+		//				}
+		//				else
+		//				{
+		//					quo._blocks[n] = (uint)(digit);
+		//				}
+		//			}
 
-					if (i < remLength)
-					{
-						remLength--;
-					}
-				}
+		//			if (i < remLength)
+		//			{
+		//				remLength--;
+		//			}
+		//		}
 
-				quo._length = quoLength;
+		//		quo._length = quoLength;
 
-				// We need to check for the case where remainder is zero
+		//		// We need to check for the case where remainder is zero
 
-				for (int i = remLength - 1; i >= 0; i--)
-				{
-					if (rem._blocks[i] == 0)
-					{
-						remLength--;
-					}
-				}
+		//		for (int i = remLength - 1; i >= 0; i--)
+		//		{
+		//			if (rem._blocks[i] == 0)
+		//			{
+		//				remLength--;
+		//			}
+		//		}
 
-				rem._length = remLength;
-			}
-		}
+		//		rem._length = remLength;
+		//	}
+		//}
 
 		public static uint HeuristicDivide(ref BigInteger dividend, ref BigInteger divisor)
 		{

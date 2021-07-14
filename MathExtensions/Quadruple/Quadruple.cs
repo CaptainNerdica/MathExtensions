@@ -15,7 +15,6 @@ namespace MathExtensions
 	/// <summary>
 	/// An Implementation of IEEE 754-2008 binary128 Quadruple precision floating point numbers.
 	/// </summary>
-	[ReadOnly(true)]
 	public unsafe partial struct Quadruple : IComparable, IComparable<Quadruple>, IEquatable<Quadruple>, IFormattable
 	{
 		internal fixed uint _b[4];
@@ -40,6 +39,7 @@ namespace MathExtensions
 		public static readonly Quadruple NegativeZero = new Quadruple(0x8000_0000_0000_0000, 0x0000_0000_0000_0000);
 		public static readonly Quadruple Zero = new Quadruple(0x0000_0000_0000_0000, 0x0000_0000_0000_0000);
 		public static readonly Quadruple One = new Quadruple(0x3FFF_0000_0000_0000, 0x0000_0000_0000_0000);
+		internal static readonly Quadruple MinusOne = new Quadruple(0xBFFF_0000_0000_0000, 0x0000_0000_0000_0000);
 
 		public static bool IsFinite(Quadruple q) => q.Exp != 0x7FFF;
 		public static bool IsInfinity(Quadruple q) => q.Exp == 0x7FFF && ((ulong*)q._b)[0] == 0 && (((ulong*)q._b)[1] & 0x0000_FFFF_FFFF_FFFF) == 0;
@@ -189,7 +189,7 @@ namespace MathExtensions
 		{
 			if (value == UInt128.Zero)
 				return;
-			int hbit = UInt128.GetHighestBit(value);
+			int hbit = UInt128.HighestBit(value);
 			int exp = hbit;
 			UInt128 u = value;
 			u <<= SignificandBits - hbit;
