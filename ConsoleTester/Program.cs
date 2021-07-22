@@ -27,7 +27,18 @@ namespace ConsoleTester
 	{
 		static unsafe void Main()
 		{
-			_ = BenchmarkRunner.Run<Benchmarks>();
+			BitArray b = new BitArray(stackalloc byte[] { 0b01010101, 0b01010101, 0b01010101, 0b01010101, 1 }, 33);
+			Console.WriteLine(b[1]);
+			//_ = BenchmarkRunner.Run<Benchmarks>();
+		}
+
+		static unsafe string WriteBytes(void* p, int startOffset, int length)
+		{
+			StringBuilder sb = new StringBuilder();
+			ReadOnlySpan<nint> s = new ReadOnlySpan<nint>((void*)((nint)p + startOffset * sizeof(nint)), length);
+			for (int i = 0; i < s.Length; i++)
+				sb.Append(s[i].ToString("X").PadLeft(sizeof(nint) * 2, '0')).Append(' ');
+			return sb.ToString();
 		}
 	}
 
@@ -38,26 +49,22 @@ namespace ConsoleTester
 	{
 		[Benchmark]
 		[ArgumentsSource(nameof(Data))]
-		public Complex Add1(Complex left, Complex right) => left + right;
+		public double Abs1(Complex value) => Complex.Abs(value);
 		[Benchmark]
 		[ArgumentsSource(nameof(Data))]
 		[SkipLocalsInit]
-		public unsafe Complex Add2(Complex left, Complex right)
+		public unsafe double Abs2(Complex value)
 		{
-			//Unsafe.SkipInit(out Complex o);
-			Vector128<double> l = Sse2.LoadVector128((double*)&left);
-			Vector128<double> r = Sse2.LoadVector128((double*)&right);
-			Vector128<double> v = Sse2.Add(l, r);
-			//Sse.Store((float*)&o, v.AsSingle());
-			return new Complex(v.GetElement(0), v.GetElement(1));
+			Vector128<double> v = Sse2.LoadVector128((double*)&value);
+			return Sse41.DotProduct(v, v, 0b0000).ToScalar();
 		}
 
 		public static IEnumerable<object[]> Data()
 		{
 			static double NextDouble(Random r) => r.Next(-1024, 1024) * r.NextDouble();
 			Random r = new Random(1234567);
-			yield return new object[] { new Complex(NextDouble(r), NextDouble(r)), new Complex(NextDouble(r), NextDouble(r)) };
-			yield return new object[] { new Complex(NextDouble(r), NextDouble(r)), new Complex(NextDouble(r), NextDouble(r)) };
+			yield return new object[] { new Complex(NextDouble(r), NextDouble(r)) };
+			yield return new object[] { new Complex(NextDouble(r), NextDouble(r)) };
 		}
 	}
 }

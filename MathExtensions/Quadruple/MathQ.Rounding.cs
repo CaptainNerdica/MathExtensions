@@ -218,7 +218,6 @@ namespace MathExtensions
 			return ((QuadUnion*)&s)->x;
 		}
 
-
 		private static unsafe Quadruple ModF(Quadruple x, Quadruple* iptr)
 		{
 			UInt128* i0 = (UInt128*)&x;

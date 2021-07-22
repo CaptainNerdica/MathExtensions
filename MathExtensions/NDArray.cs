@@ -134,7 +134,16 @@ namespace MathExtensions
 			if (Shape != other.Shape)
 				throw new ArgumentException("Shapes are unequal", nameof(other));
 			NDArray<TOut> output = new NDArray<TOut>(Shape);
-			Parallel.For(0, Size, i => output._items[i] = Arithmetic<T, TOther, TOut>.Add(_items[i], other._items[i]));
+			Parallel.For(0, Size, i => output._items[i] = Arithmetic.Add<T, TOther, TOut>(_items[i], other._items[i]));
+			return output;
+		}
+
+		public NDArray<T> Add(NDArray<T> other)
+		{
+			if (Shape != other.Shape)
+				throw new ArgumentException("Shapes are unequal", nameof(other));
+			NDArray<T> output = new NDArray<T>(Shape);
+			Parallel.For(0, Size, i => output._items[i] = Arithmetic.Add(_items[i], other._items[i]));
 			return output;
 		}
 	}

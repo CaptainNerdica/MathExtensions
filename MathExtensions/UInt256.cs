@@ -25,7 +25,6 @@ namespace MathExtensions
 		public static readonly UInt256 Zero = default;
 		public static readonly UInt256 One = 1;
 
-
 		internal bool this[int index]
 		{
 			get => ((_u[index / 32] >> (index % 32)) & 1) == 1;

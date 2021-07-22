@@ -1,15 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace MathExtensions
 {
+	[StructLayout(LayoutKind.Explicit)]
 	public readonly struct Complex : IEquatable<Complex>, IFormattable
 	{
 #pragma warning disable IDE0032 // Use auto property
+		[FieldOffset(0)]
 		public readonly double _real;
+		[FieldOffset(sizeof(double))]
 		public readonly double _imag;
 #pragma warning restore IDE0032 // Use auto property
 

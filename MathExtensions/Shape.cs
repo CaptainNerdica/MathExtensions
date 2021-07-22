@@ -15,33 +15,36 @@ namespace MathExtensions
 		public int Rank => _dimensions?.Length ?? 0;
 		public int Size => _dimensions?.Aggregate(1, (value, accumulate) => value * accumulate) ?? 0;
 		public Index MinIndex => new Index(new int[Rank]);
-		public Index MaxIndex => new Index(_dimensions.Select(i => i - 1).ToArray());
+		public Index MaxIndex
+		{
+			get
+			{
+				Span<int> s = stackalloc int[_dimensions.Length];
+				for (int i = 0; i < _dimensions.Length; ++i)
+					s[i] = _dimensions[i] - 1;
+				return new Index(s.ToArray());
+			}
+		}
 
 		public int this[int index] => _dimensions?[index] ?? throw new IndexOutOfRangeException();
 
 		public static readonly Shape Empty = new Shape(0);
-		public Shape(params int[] dimensions)
+		public Shape(params int[] dimensions) : this((Span<int>)dimensions) { }
+		public Shape(Span<int> dimensions)
 		{
+			if (dimensions.Length == 0)
+			{
+				_dimensions = Array.Empty<int>();
+				return;
+			}
 			CheckAllPositive(dimensions);
-			_dimensions = new int[dimensions.Length];
-			dimensions.CopyTo(_dimensions, 0);
-		}
-		public Shape(ITuple dimensions)
-		{
-			if (!dimensions.GetType().GetGenericArguments().All(t => t == typeof(int)))
-				throw new ArgumentException("All Tuple type parameters must be int", nameof(dimensions));
-			_dimensions = new int[dimensions.Length];
-			for (int i = 0; i < dimensions.Length; i++)
-				_dimensions[i] = (int)(dimensions[i] ?? 0);
-			CheckAllPositive(_dimensions);
+			_dimensions = dimensions.ToArray();
 		}
 		#region ValueTuple Constructors
 		public Shape(int dimension)
 		{
-			if (dimension == 0)
-				_dimensions = Array.Empty<int>();
-			else
-				_dimensions = new int[] { dimension };
+			_dimensions = dimension == 0 ? Array.Empty<int>() : new int[] { dimension };
+			CheckAllPositive(_dimensions);
 		}
 		public Shape((int, int) dimensions)
 		{
@@ -80,10 +83,11 @@ namespace MathExtensions
 		}
 		#endregion
 
-		private static void CheckAllPositive(int[] dimensions)
+		private static void CheckAllPositive(Span<int> dimensions)
 		{
-			if (dimensions.Any(i => i < 0))
-				throw new IndexOutOfRangeException("All dimension sizes must be positive");
+			for (int i = 0; i < dimensions.Length; ++i)
+				if (dimensions[i] < 0)
+					throw new IndexOutOfRangeException("All dimension sizes must be positive");
 		}
 
 		public override bool Equals(object? obj) => obj is Shape shape && Equals(shape);

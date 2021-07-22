@@ -968,7 +968,6 @@ namespace MathExtensions.Internal
 
 		private void Clear(uint length) => Unsafe.InitBlockUnaligned(ref Unsafe.As<uint, byte>(ref _blocks[0]), 0, length * sizeof(uint));
 
-
 		private static uint DivRem32(uint value, out uint remainder)
 		{
 			remainder = value & 31;

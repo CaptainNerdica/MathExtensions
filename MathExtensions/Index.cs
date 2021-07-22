@@ -19,24 +19,17 @@ namespace MathExtensions
 		public int this[int index] => _dimensions?[index] ?? throw new IndexOutOfRangeException();
 
 		public static readonly Index Empty = new Index(0);
-		public Index(params int[] dimensions)
+		public Index(params int[] dimensions) : this((Span<int>)dimensions) { }
+
+		public Index(Span<int> dimensions)
 		{
-			if (dimensions is null)
-				throw new ArgumentNullException(nameof(dimensions));
+			if (dimensions.Length == 0)
+			{
+				_dimensions = Array.Empty<int>();
+				return;
+			}
 			CheckAllPositive(dimensions);
-			_dimensions = new int[dimensions.Length];
-			dimensions.CopyTo(_dimensions, 0);
-		}
-		public Index(ITuple dimensions)
-		{
-			if (dimensions is null)
-				throw new ArgumentNullException(nameof(dimensions));
-			if (!dimensions.GetType().GetGenericArguments().All(t => t == typeof(int)))
-				throw new ArgumentException("All Tuple type parameters must be int", nameof(dimensions));
-			_dimensions = new int[dimensions.Length];
-			for (int i = 0; i < dimensions.Length; i++)
-				_dimensions[i] = (int)(dimensions[i] ?? 0);
-			CheckAllPositive(_dimensions);
+			_dimensions = dimensions.ToArray();
 		}
 		#region ValueTuple Constructors
 		public Index(int dimension)
@@ -83,10 +76,11 @@ namespace MathExtensions
 		}
 		#endregion
 
-		private static void CheckAllPositive(int[] dimensions)
+		private static void CheckAllPositive(Span<int> dimensions)
 		{
-			if (dimensions.Any(i => i < 0))
-				throw new IndexOutOfRangeException("All dimension sizes must be positive");
+			for (int i = 0; i < dimensions.Length; ++i)
+				if (dimensions[i] < 0)
+					throw new IndexOutOfRangeException("All dimension sizes must be positive");
 		}
 		private static double GetDistance(Index index)
 		{
