@@ -21,8 +21,8 @@ namespace MathExtensions
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0032:Use auto property", Justification = "<Pending>")]
 	public readonly struct ComplexF : IEquatable<ComplexF>, IFormattable
 	{
-		private readonly float _real;
-		private readonly float _imag;
+		internal readonly float _real;
+		internal readonly float _imag;
 
 		public static readonly ComplexF ImaginaryOne = new ComplexF(0, 1);
 		public static readonly ComplexF Infinity = new ComplexF(float.PositiveInfinity, float.PositiveInfinity);

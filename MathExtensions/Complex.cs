@@ -2,12 +2,15 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
+using System.Runtime.Intrinsics.Arm;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace MathExtensions
 {
-	[StructLayout(LayoutKind.Explicit)]
+	[StructLayout(LayoutKind.Explicit, Size = 2 * sizeof(double))]
 	public readonly struct Complex : IEquatable<Complex>, IFormattable
 	{
 #pragma warning disable IDE0032 // Use auto property
@@ -59,29 +62,29 @@ namespace MathExtensions
 		public static Complex operator -(Complex left, double right) => new Complex(left._real - right, left._imag);
 		public static Complex operator -(double left, Complex right) => new Complex(left - right._real, -right._imag);
 
-		public static Complex operator *(Complex left, Complex right) => new Complex(left._real * right._real - left._imag * right._imag, left._imag * right._real + left._real * right._imag);
+		public unsafe static Complex operator *(Complex left, Complex right)
+		{
+			if (Sse3.IsSupported)
+			{
+				Vector128<double> l = Sse2.LoadVector128((double*)&left);
+				Vector128<double> r = Sse2.LoadVector128((double*)&right);
+				Vector128<double> rReal = Sse2.Shuffle(r.AsInt32(), 0b01_00_11_10).AsDouble();
+				Vector128<double> rImag = Sse2.Multiply(r, Vector128.Create(1d, -1));
+				Vector128<double> mReal = Sse2.Multiply(l, rImag);
+				Vector128<double> mImag = Sse2.Multiply(l, rReal);
+				Vector128<double> v = Sse3.HorizontalAdd(mReal, mImag);
+				Sse2.Store((double*)&left, v);
+				return left;
+			}
+			else
+				return new Complex(left._real * right._real - left._imag * right._imag, left._imag * right._real + left._real * right._imag);
+		}
 		public static Complex operator *(Complex left, double right)
 		{
-			if (!double.IsFinite(left._real))
-			{
-				if (!double.IsFinite(left._imag))
-					return NaN;
-				return new Complex(left._real * right, double.NaN);
-			}
-			if (!double.IsFinite(left._imag))
-				return new Complex(double.NaN, left._imag * right);
 			return new Complex(left._real * right, left._imag * right);
 		}
 		public static Complex operator *(double left, Complex right)
 		{
-			if (!double.IsFinite(right._real))
-			{
-				if (double.IsFinite(right._imag))
-					return NaN;
-				return new Complex(left * right._real, double.NaN);
-			}
-			if (!double.IsFinite(right._imag))
-				return new Complex(double.NaN, left * right._imag);
 			return new Complex(left * right._real, left * right._imag);
 		}
 
@@ -129,6 +132,12 @@ namespace MathExtensions
 		public static bool operator ==(Complex left, Complex right) => left._real == right._real && left._imag == right._imag;
 		public static bool operator !=(Complex left, Complex right) => left._real != right._real || left._imag != right._imag;
 
+		public static implicit operator Complex(double value) => new Complex(value, 0);
+		public static implicit operator Complex(float value) => new Complex(value, 0);
+		public static implicit operator System.Numerics.Complex(Complex value) => new System.Numerics.Complex(value._real, value._imag);
+		public static implicit operator Complex(ComplexF value) => new Complex(value._real, value._imag);
+		public static explicit operator ComplexF(Complex value) => new ComplexF((float)value._real, (float)value._imag);
+
 		public override bool Equals(object? obj) => obj is Complex c && Equals(c);
 		public bool Equals(Complex other) => this == other;
 
@@ -136,7 +145,7 @@ namespace MathExtensions
 		public override string ToString() => $"({_real}, {_imag})";
 		public string ToString(string? format) => ToString(format, null);
 		public string ToString(IFormatProvider? provider) => ToString(null, provider);
-		public string ToString(string? format, IFormatProvider? provider) => new StringBuilder().Append('(').Append(_real.ToString(format, provider)).Append(',').Append(' ').Append(_imag.ToString(format, provider)).Append(')').ToString();
+		public string ToString(string? format, IFormatProvider? provider) => new StringBuilder().Append('(').Append(_real.ToString(format, provider)).Append(stackalloc char[] { ',', ' ' }).Append(_imag.ToString(format, provider)).Append(')').ToString();
 
 		public static Complex Sin(Complex value)
 		{

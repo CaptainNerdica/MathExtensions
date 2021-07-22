@@ -25,11 +25,10 @@ namespace ConsoleTester
 {
 	class Program
 	{
+		static double NextDouble(Random r) => r.Next(-16, 16) * r.NextDouble();
 		static unsafe void Main()
 		{
-			BitArray b = new BitArray(stackalloc byte[] { 0b01010101, 0b01010101, 0b01010101, 0b01010101, 1 }, 33);
-			Console.WriteLine(b[1]);
-			//_ = BenchmarkRunner.Run<Benchmarks>();
+			_ = BenchmarkRunner.Run<Benchmarks>();
 		}
 
 		static unsafe string WriteBytes(void* p, int startOffset, int length)
@@ -49,22 +48,29 @@ namespace ConsoleTester
 	{
 		[Benchmark]
 		[ArgumentsSource(nameof(Data))]
-		public double Abs1(Complex value) => Complex.Abs(value);
+		public Complex Multiply1(Complex left, Complex right) => new Complex(left._real * right._real - left._imag * right._imag, left._imag * right._real + left._real * right._imag);
 		[Benchmark]
 		[ArgumentsSource(nameof(Data))]
 		[SkipLocalsInit]
-		public unsafe double Abs2(Complex value)
+		public unsafe Complex Multiply2(Complex left, Complex right)
 		{
-			Vector128<double> v = Sse2.LoadVector128((double*)&value);
-			return Sse41.DotProduct(v, v, 0b0000).ToScalar();
+			Vector128<double> l = Sse2.LoadVector128((double*)&left);
+			Vector128<double> r = Sse2.LoadVector128((double*)&right);
+			Vector128<double> rReal = Sse2.Shuffle(r.AsInt32(), 0b01_00_11_10).AsDouble();
+			Vector128<double> rImag = Sse2.Multiply(r, Vector128.Create(1d, -1));
+			Vector128<double> mReal = Sse2.Multiply(l, rImag);
+			Vector128<double> mImag = Sse2.Multiply(l, rReal);
+			Vector128<double> v = Sse3.HorizontalAdd(mReal, mImag);
+			Sse2.Store((double*)&left, v);
+			return left;
 		}
 
 		public static IEnumerable<object[]> Data()
 		{
 			static double NextDouble(Random r) => r.Next(-1024, 1024) * r.NextDouble();
 			Random r = new Random(1234567);
-			yield return new object[] { new Complex(NextDouble(r), NextDouble(r)) };
-			yield return new object[] { new Complex(NextDouble(r), NextDouble(r)) };
+			yield return new object[] { new Complex(NextDouble(r), NextDouble(r)), new Complex(NextDouble(r), NextDouble(r)) };
+			yield return new object[] { new Complex(NextDouble(r), NextDouble(r)), new Complex(NextDouble(r), NextDouble(r)) };
 		}
 	}
 }
