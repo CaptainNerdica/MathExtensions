@@ -7,16 +7,15 @@ using System.Runtime.Intrinsics.X86;
 using System.Runtime.Intrinsics.Arm;
 using System.Text;
 using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 
 namespace MathExtensions
 {
-	[StructLayout(LayoutKind.Explicit, Size = 2 * sizeof(double))]
+	[StructLayout(LayoutKind.Sequential)]
 	public readonly struct Complex : IEquatable<Complex>, IFormattable
 	{
 #pragma warning disable IDE0032 // Use auto property
-		[FieldOffset(0)]
 		public readonly double _real;
-		[FieldOffset(sizeof(double))]
 		public readonly double _imag;
 #pragma warning restore IDE0032 // Use auto property
 
@@ -47,8 +46,22 @@ namespace MathExtensions
 		public static bool IsInfinity(Complex value) => double.IsInfinity(value._real) || double.IsInfinity(value._imag);
 		public static bool IsNaN(Complex value) => !IsInfinity(value) && !IsFinite(value);
 
-		public static double Abs(Complex value) => Math.Sqrt(value._real * value._real + value._imag * value._imag);
-		public static Complex Conjugate(Complex value) => new Complex(value._real, value._imag);
+		public unsafe static double Abs(Complex value)
+		{
+			if (Sse2.IsSupported)
+			{
+				Vector128<double> real = Sse2.LoadScalarVector128((double*)&value);
+				Vector128<double> imag = Sse2.LoadScalarVector128((double*)&value + 1);
+				Vector128<double> c = Sse2.Shuffle(real, imag, 0b00);
+				Vector128<double> m = Sse2.Multiply(c, c);
+				Vector128<double> i = Sse2.Shuffle(m.AsInt32(), 0b0100_1110).AsDouble();
+				Vector128<double> a = Sse2.AddScalar(m, i);
+				Vector128<double> root = Sse2.SqrtScalar(a);
+				return root.ToScalar();
+			}
+			return Math.Sqrt(value._real * value._real + value._imag * value._imag);
+		}
+		public static Complex Conjugate(Complex value) => new Complex(value._real, -value._imag);
 		public static Complex Reciprocal(Complex value) => value._real == 0 && value._imag == 0 ? Zero : One / value;
 
 		public static Complex operator +(Complex value) => value;
@@ -62,31 +75,9 @@ namespace MathExtensions
 		public static Complex operator -(Complex left, double right) => new Complex(left._real - right, left._imag);
 		public static Complex operator -(double left, Complex right) => new Complex(left - right._real, -right._imag);
 
-		public unsafe static Complex operator *(Complex left, Complex right)
-		{
-			if (Sse3.IsSupported)
-			{
-				Vector128<double> l = Sse2.LoadVector128((double*)&left);
-				Vector128<double> r = Sse2.LoadVector128((double*)&right);
-				Vector128<double> rReal = Sse2.Shuffle(r.AsInt32(), 0b01_00_11_10).AsDouble();
-				Vector128<double> rImag = Sse2.Multiply(r, Vector128.Create(1d, -1));
-				Vector128<double> mReal = Sse2.Multiply(l, rImag);
-				Vector128<double> mImag = Sse2.Multiply(l, rReal);
-				Vector128<double> v = Sse3.HorizontalAdd(mReal, mImag);
-				Sse2.Store((double*)&left, v);
-				return left;
-			}
-			else
-				return new Complex(left._real * right._real - left._imag * right._imag, left._imag * right._real + left._real * right._imag);
-		}
-		public static Complex operator *(Complex left, double right)
-		{
-			return new Complex(left._real * right, left._imag * right);
-		}
-		public static Complex operator *(double left, Complex right)
-		{
-			return new Complex(left * right._real, left * right._imag);
-		}
+		public unsafe static Complex operator *(Complex left, Complex right) => new Complex(left._real * right._real - left._imag * right._imag, left._imag * right._real + left._real * right._imag);
+		public static Complex operator *(Complex left, double right) => new Complex(left._real * right, left._imag * right);
+		public static Complex operator *(double left, Complex right) => new Complex(left * right._real, left * right._imag);
 
 		public static Complex operator /(Complex left, Complex right)
 		{
@@ -137,6 +128,14 @@ namespace MathExtensions
 		public static implicit operator System.Numerics.Complex(Complex value) => new System.Numerics.Complex(value._real, value._imag);
 		public static implicit operator Complex(ComplexF value) => new Complex(value._real, value._imag);
 		public static explicit operator ComplexF(Complex value) => new ComplexF((float)value._real, (float)value._imag);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal unsafe static Vector128<double> ToVector128(Complex* value)
+		{
+			Vector128<double> r = Sse2.LoadScalarVector128((double*)value);
+			Vector128<double> i = Sse2.LoadScalarVector128((double*)value + 1);
+			return Sse2.UnpackLow(r, i);
+		}
 
 		public override bool Equals(object? obj) => obj is Complex c && Equals(c);
 		public bool Equals(Complex other) => this == other;

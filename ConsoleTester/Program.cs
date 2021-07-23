@@ -20,6 +20,9 @@ using BenchmarkDotNet.Attributes;
 using System.Runtime.Intrinsics;
 using BenchmarkDotNet.Running;
 using System.Threading.Tasks;
+using System.Numerics;
+using Complex = MathExtensions.Complex;
+using BenchmarkDotNet.Jobs;
 
 namespace ConsoleTester
 {
@@ -28,49 +31,77 @@ namespace ConsoleTester
 		static double NextDouble(Random r) => r.Next(-16, 16) * r.NextDouble();
 		static unsafe void Main()
 		{
-			_ = BenchmarkRunner.Run<Benchmarks>();
-		}
-
-		static unsafe string WriteBytes(void* p, int startOffset, int length)
-		{
-			StringBuilder sb = new StringBuilder();
-			ReadOnlySpan<nint> s = new ReadOnlySpan<nint>((void*)((nint)p + startOffset * sizeof(nint)), length);
-			for (int i = 0; i < s.Length; i++)
-				sb.Append(s[i].ToString("X").PadLeft(sizeof(nint) * 2, '0')).Append(' ');
-			return sb.ToString();
+			BenchmarkRunner.Run<BenchmarksComplex>();
 		}
 	}
 
 	[RankColumn]
 	[DisassemblyDiagnoser]
-	[IterationCount(20)]
-	public class Benchmarks
+	public class BenchmarksVector
 	{
 		[Benchmark]
 		[ArgumentsSource(nameof(Data))]
-		public Complex Multiply1(Complex left, Complex right) => new Complex(left._real * right._real - left._imag * right._imag, left._imag * right._real + left._real * right._imag);
+		public float Abs1(Vector4 value) => MathF.Sqrt(value.X * value.X + value.Y * value.Y + value.Z * value.Z + value.W * value.W);
 		[Benchmark]
 		[ArgumentsSource(nameof(Data))]
 		[SkipLocalsInit]
-		public unsafe Complex Multiply2(Complex left, Complex right)
+		public unsafe float Abs2(Vector4 value)
 		{
-			Vector128<double> l = Sse2.LoadVector128((double*)&left);
-			Vector128<double> r = Sse2.LoadVector128((double*)&right);
-			Vector128<double> rReal = Sse2.Shuffle(r.AsInt32(), 0b01_00_11_10).AsDouble();
-			Vector128<double> rImag = Sse2.Multiply(r, Vector128.Create(1d, -1));
-			Vector128<double> mReal = Sse2.Multiply(l, rImag);
-			Vector128<double> mImag = Sse2.Multiply(l, rReal);
-			Vector128<double> v = Sse3.HorizontalAdd(mReal, mImag);
-			Sse2.Store((double*)&left, v);
-			return left;
+			//Vector128<double> v = Sse2.LoadVector128((double*)&value);
+			//Vector128<double> dp = Sse41.DotProduct(v, v, 0x31);
+			//return Sse2.SqrtScalar(dp).ToScalar();
+			return value.Length();
 		}
 
-		public static IEnumerable<object[]> Data()
+		public static IEnumerable<object> Data()
 		{
-			static double NextDouble(Random r) => r.Next(-1024, 1024) * r.NextDouble();
+			static double NextDouble(Random r) => r.Next(-32, 32) * r.NextDouble();
+			static float NextSingle(Random r) => r.Next(-32, 32) * (float)r.NextDouble();
 			Random r = new Random(1234567);
-			yield return new object[] { new Complex(NextDouble(r), NextDouble(r)), new Complex(NextDouble(r), NextDouble(r)) };
-			yield return new object[] { new Complex(NextDouble(r), NextDouble(r)), new Complex(NextDouble(r), NextDouble(r)) };
+			//yield return new Complex(NextDouble(r), NextDouble(r));
+			//yield return new Complex(NextDouble(r), NextDouble(r));
+			yield return new Vector4(NextSingle(r), NextSingle(r), NextSingle(r), NextSingle(r));
+		}
+	}
+
+	[RankColumn]
+	[DisassemblyDiagnoser]
+	//[MaxIterationCount(30)]
+	public class BenchmarksComplex
+	{
+		[Benchmark(Baseline = true)]
+		[ArgumentsSource(nameof(Data))]
+		public unsafe Complex LoadFields(Complex value)
+		{
+			Vector128<double> r = Sse2.LoadScalarVector128((double*)&value);
+			Vector128<double> i = Sse2.LoadScalarVector128((double*)&value + 1);
+			Vector128<double> v = Sse2.UnpackLow(r, i);
+			Sse2.Store((double*)&value, v);
+			return value;
+		}
+		[Benchmark]
+		[ArgumentsSource(nameof(Data))]
+		public unsafe Complex LoadVector(Complex value)
+		{
+			Vector128<double> v = ComplexToVector(&value);
+			Sse2.Store((double*)&value, v);
+			return value;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private unsafe static Vector128<double> ComplexToVector(Complex* value)
+		{
+			Vector128<double> x = Sse2.LoadVector128((double*)value).AsDouble();
+			//Vector128<double> r = Sse2.LoadScalarVector128((double*)value);
+			//Vector128<double> v = Sse2.LoadHigh(r, (double*)value + 1);
+			return x;
+		}
+
+		public static IEnumerable<object> Data()
+		{
+			static double NextDouble(Random r) => r.Next(-32, 32) * r.NextDouble();
+			Random r = new Random(12345678);
+			yield return new Complex(NextDouble(r), NextDouble(r));
 		}
 	}
 }
