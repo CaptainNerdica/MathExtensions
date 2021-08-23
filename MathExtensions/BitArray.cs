@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace MathExtensions
 {
-	public class BitArray : IEnumerable<bool>, IList<bool>
+	public class BitArray : IList<bool>
 	{
 		private const int size = sizeof(byte) * 8;
 		private readonly byte[] _bits;
@@ -47,25 +47,30 @@ namespace MathExtensions
 		public BitArray(int length)
 		{
 			Count = length;
-			int arrayLength = MathExtensions.DivideRoundAway(length, size);
+			int arrayLength = Math.DivideRoundAway(length, size);
 			_bits = new byte[arrayLength];
 		}
 
+		public BitArray(ReadOnlySpan<bool> bits) : this(bits.Length)
+		{
+			for (int i = 0; i < bits.Length; ++i)
+				this[i] = bits[i];
+		}
 		public BitArray(byte[] bits) : this(bits.AsSpan()) { }
 		public BitArray(byte[] bits, int length) : this(bits.AsSpan(), length) { }
 
-		public BitArray(Span<byte> bits)
+		public BitArray(ReadOnlySpan<byte> bits)
 		{
 			Count = bits.Length * size;
 			_bits = bits.ToArray();
 		}
 
-		public BitArray(Span<byte> bits, int length)
+		public BitArray(ReadOnlySpan<byte> bits, int length)
 		{
 			Count = length;
 			if (bits.Length * size < length)
 				throw new ArgumentException("Source is too short", nameof(bits));
-			int arrayLength = MathExtensions.DivideRoundAway(length, size);
+			int arrayLength = Math.DivideRoundAway(length, size);
 			_bits = bits.Slice(0, arrayLength).ToArray();
 			int r = length % size;
 			_bits[^1] &= (byte)((1U << r) - 1);

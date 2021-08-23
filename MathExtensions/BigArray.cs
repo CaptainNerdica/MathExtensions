@@ -43,7 +43,7 @@ namespace MathExtensions
 			Length = length;
 			BinSize = binSize;
 			long fullBins = Length / BinSize;
-			long count = (long)Math.Ceiling((double)Length / BinSize);
+			long count = (long)System.Math.Ceiling((double)Length / BinSize);
 			_bins = new T[count][];
 			if (initBins)
 			{

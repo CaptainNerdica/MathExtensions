@@ -22,7 +22,7 @@ namespace MathExtensions
 		public double Real => _real;
 		public double Imaginary => _imag;
 		public double Magnitude => Abs(this);
-		public double Phase => Math.Atan2(_real, _imag);
+		public double Phase => System.Math.Atan2(_real, _imag);
 
 		public static readonly Complex Zero = new Complex(0, 0);
 		public static readonly Complex One = new Complex(1, 0);
@@ -59,7 +59,7 @@ namespace MathExtensions
 				Vector128<double> root = Sse2.SqrtScalar(a);
 				return root.ToScalar();
 			}
-			return Math.Sqrt(value._real * value._real + value._imag * value._imag);
+			return System.Math.Sqrt(value._real * value._real + value._imag * value._imag);
 		}
 		public static Complex Conjugate(Complex value) => new Complex(value._real, -value._imag);
 		public static Complex Reciprocal(Complex value) => value._real == 0 && value._imag == 0 ? Zero : One / value;
@@ -75,13 +75,13 @@ namespace MathExtensions
 		public static Complex operator -(Complex left, double right) => new Complex(left._real - right, left._imag);
 		public static Complex operator -(double left, Complex right) => new Complex(left - right._real, -right._imag);
 
-		public unsafe static Complex operator *(Complex left, Complex right) => new Complex(left._real * right._real - left._imag * right._imag, left._imag * right._real + left._real * right._imag);
+		public static Complex operator *(Complex left, Complex right) => new Complex(left._real * right._real - left._imag * right._imag, left._imag * right._real + left._real * right._imag);
 		public static Complex operator *(Complex left, double right) => new Complex(left._real * right, left._imag * right);
 		public static Complex operator *(double left, Complex right) => new Complex(left * right._real, left * right._imag);
 
 		public static Complex operator /(Complex left, Complex right)
 		{
-			if (Math.Abs(right._imag) < Math.Abs(right._real))
+			if (System.Math.Abs(right._imag) < System.Math.Abs(right._real))
 			{
 				double doc = right._imag / right._real;
 				return new Complex((left._real + left._imag * doc) / (right._real + right._imag * doc), (left._imag - left._real * doc) / (right._real + right._imag * doc));
@@ -108,7 +108,7 @@ namespace MathExtensions
 		}
 		public static Complex operator /(double left, Complex right)
 		{
-			if (Math.Abs(right._imag) < Math.Abs(right._real))
+			if (System.Math.Abs(right._imag) < System.Math.Abs(right._real))
 			{
 				double doc = right._imag / right._real;
 				return new Complex(left / (right._real + right._imag * doc), (-left * doc) / (right._real + right._imag * doc));
@@ -130,12 +130,9 @@ namespace MathExtensions
 		public static explicit operator ComplexF(Complex value) => new ComplexF((float)value._real, (float)value._imag);
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal unsafe static Vector128<double> ToVector128(Complex* value)
-		{
-			Vector128<double> r = Sse2.LoadScalarVector128((double*)value);
-			Vector128<double> i = Sse2.LoadScalarVector128((double*)value + 1);
-			return Sse2.UnpackLow(r, i);
-		}
+		private unsafe static Vector128<double> LoadVector128(void* ptr) => Sse2.LoadVector128((double*)ptr);
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private unsafe static void StoreVector128(void* ptr, Vector128<double> vector) => Sse2.Store((double*)ptr, vector);
 
 		public override bool Equals(object? obj) => obj is Complex c && Equals(c);
 		public bool Equals(Complex other) => this == other;
@@ -148,32 +145,32 @@ namespace MathExtensions
 
 		public static Complex Sin(Complex value)
 		{
-			double exp = Math.Exp(value._imag);
+			double exp = System.Math.Exp(value._imag);
 			double invExp = 1 / exp;
-			return new Complex(Math.Sin(value._real) * (exp + invExp) * 0.5, Math.Cos(value._real) * (exp - invExp) * 0.5);
+			return new Complex(System.Math.Sin(value._real) * (exp + invExp) * 0.5, System.Math.Cos(value._real) * (exp - invExp) * 0.5);
 		}
 
 		public static Complex Cos(Complex value)
 		{
-			double exp = Math.Exp(value._imag);
+			double exp = System.Math.Exp(value._imag);
 			double invExp = 1 / exp;
-			return new Complex(Math.Cos(value._real) * (exp + invExp) * 0.5, -Math.Sin(value._real) * (exp - invExp) * 0.5);
+			return new Complex(System.Math.Cos(value._real) * (exp + invExp) * 0.5, -System.Math.Sin(value._real) * (exp - invExp) * 0.5);
 		}
 
 		public static Complex Tan(Complex value)
 		{
 			const double maxY = 354.891356446692;
-			if (Math.Abs(value._imag) >= maxY)
-				return new Complex(0, Math.Sign(value._imag));
-			double sin = Math.Sin(value._real);
-			double cos = Math.Cos(value._real);
-			double p = Math.Exp(value._imag);
+			if (System.Math.Abs(value._imag) >= maxY)
+				return new Complex(0, System.Math.Sign(value._imag));
+			double sin = System.Math.Sin(value._real);
+			double cos = System.Math.Cos(value._real);
+			double p = System.Math.Exp(value._imag);
 			double q = 1 / p;
 
 			double x, y, r2;
 			double p2 = p * p;
 			double q2 = q * q;
-			double s4 = Math.ScaleB(sin, 2);
+			double s4 = System.Math.ScaleB(sin, 2);
 			x = s4 * cos;
 			y = p2 - q2;
 
@@ -195,16 +192,16 @@ namespace MathExtensions
 			return new Complex(tan._imag, -tan._real);
 		}
 
-		public static Complex Log(Complex value) => new Complex(Math.Log(Abs(value)), Math.Atan2(value._imag, value._real));
+		public static Complex Log(Complex value) => new Complex(System.Math.Log(Abs(value)), System.Math.Atan2(value._imag, value._real));
 		public static Complex Log(Complex value, Complex logBase) => Log(value) / Log(logBase);
-		public static Complex Log(Complex value, double logBase) => Log(value) / Math.Log(logBase);
+		public static Complex Log(Complex value, double logBase) => Log(value) / System.Math.Log(logBase);
 		const double invLog10 = 0.43429448190325176;
 		public static Complex Log10(Complex value) => Log(value) * invLog10;
 
 		public static Complex Exp(Complex value)
 		{
-			double exp = Math.Exp(value._real);
-			return new Complex(exp * Math.Cos(value._imag), exp * Math.Sin(value._imag));
+			double exp = System.Math.Exp(value._real);
+			return new Complex(exp * System.Math.Cos(value._imag), exp * System.Math.Sin(value._imag));
 		}
 	}
 }

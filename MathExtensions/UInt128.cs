@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -22,8 +23,8 @@ namespace MathExtensions
 
 		public static readonly UInt128 MaxValue = new UInt128(uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue);
 		public static readonly UInt128 MinValue = default;
-		public static readonly UInt128 Zero = default;
-		public static readonly UInt128 One = 1;
+		public static UInt128 One { get; } = 1;
+		public static UInt128 Zero { get; } = default;
 
 		internal bool this[int index]
 		{
@@ -64,14 +65,14 @@ namespace MathExtensions
 			fixed (void* p = _u)
 			{
 				Span<byte> s = new Span<byte>(p, Bytes);
-				span.Slice(0, Math.Min(Bytes, span.Length)).CopyTo(s);
+				span.Slice(0, System.Math.Min(Bytes, span.Length)).CopyTo(s);
 			}
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal UInt128(void* src, uint length)
 		{
 			fixed (void* p = _u)
-				Unsafe.CopyBlock(p, src, Math.Min(Bytes, length));
+				Unsafe.CopyBlock(p, src, System.Math.Min(Bytes, length));
 		}
 
 		public override bool Equals(object? obj) => obj is UInt128 other && Equals(other);
@@ -216,7 +217,7 @@ namespace MathExtensions
 			uint* o = output._u;
 			int ldw = GetDWordCount(left);
 			int rdw = GetDWordCount(right);
-			int min = Math.Min(ldw, rdw);
+			int min = System.Math.Min(ldw, rdw);
 			for (int i = 0; i < min; ++i)
 			{
 				ulong carry = 0UL;
@@ -452,7 +453,6 @@ namespace MathExtensions
 		public static bool operator <(UInt128 left, UInt128 right) => left.CompareTo(right) < 0;
 		public static bool operator >=(UInt128 left, UInt128 right) => left.CompareTo(right) >= 0;
 		public static bool operator <=(UInt128 left, UInt128 right) => left.CompareTo(right) <= 0;
-
 
 		public static implicit operator UInt128(uint u) => new UInt128(u, 0, 0, 0);
 		public static explicit operator UInt128(int i) => new UInt128((uint)i, 0, 0, 0);

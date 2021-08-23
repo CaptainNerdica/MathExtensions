@@ -400,8 +400,8 @@ namespace MathExtensions
 				iq[i] = (int)(z - two24 * fw);
 				z = q[j - 1] + fw;
 			}
-			z = Math.ScaleB(z, q0);
-			z -= 8.0 * Math.Floor(z * 0.125);
+			z = System.Math.ScaleB(z, q0);
+			z -= 8.0 * System.Math.Floor(z * 0.125);
 			n = (int)z;
 			z -= n;
 			ih = 0;
@@ -446,7 +446,7 @@ namespace MathExtensions
 				{
 					z = one - z;
 					if (carry != 0)
-						z -= Math.ScaleB(one, q0);
+						z -= System.Math.ScaleB(one, q0);
 				}
 			}
 
@@ -482,7 +482,7 @@ namespace MathExtensions
 			}
 			else           /* break z into 24-bit if necessary */
 			{
-				z = Math.ScaleB(z, -q0);
+				z = System.Math.ScaleB(z, -q0);
 				if (z >= two24)
 				{
 					fw = ((int)(twon24 * z));
@@ -494,7 +494,7 @@ namespace MathExtensions
 					iq[jz] = (int)z;
 			}
 
-			fw = Math.ScaleB(one, q0);
+			fw = System.Math.ScaleB(one, q0);
 			for (i = jz; i >= 0; i--)
 				q[i] = fw * iq[i]; fw *= twon24;
 

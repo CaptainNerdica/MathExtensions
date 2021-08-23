@@ -76,7 +76,7 @@ namespace MathExtensions
 			fixed (void* p = _b)
 			{
 				Span<byte> s = new Span<byte>(p, sizeof(Quadruple));
-				span.Slice(0, Math.Min(sizeof(Quadruple), span.Length)).CopyTo(s);
+				span.Slice(0, System.Math.Min(sizeof(Quadruple), span.Length)).CopyTo(s);
 			}
 		}
 

@@ -101,10 +101,10 @@ namespace MathExtensions
 				return NaN;
 			int lExp = left.Exp == 0 ? 1 : left.Exp;
 			int rExp = right.Exp == 0 ? 1 : right.Exp;
-			int exponent = Math.Max(lExp, rExp) - Bias;
+			int exponent = System.Math.Max(lExp, rExp) - Bias;
 			UInt256 l = new UInt256(UInt128.Zero, GetSignificand(left));
 			UInt256 r = new UInt256(UInt128.Zero, GetSignificand(right));
-			int diff = Math.Abs(lExp - rExp);
+			int diff = System.Math.Abs(lExp - rExp);
 			if (lExp > rExp)
 				r >>= diff;
 			else if (rExp > lExp)
@@ -149,10 +149,10 @@ namespace MathExtensions
 				return NaN;
 			int lExp = left.Exp == 0 ? 1 : left.Exp;
 			int rExp = right.Exp == 0 ? 1 : right.Exp;
-			int exponent = Math.Max(lExp, rExp) - Bias;
+			int exponent = System.Math.Max(lExp, rExp) - Bias;
 			UInt256 l = new UInt256(UInt128.Zero, GetSignificand(left));
 			UInt256 r = new UInt256(UInt128.Zero, GetSignificand(right));
-			int diff = Math.Abs(lExp - rExp);
+			int diff = System.Math.Abs(lExp - rExp);
 			if (lExp > rExp)
 				r >>= diff;
 			else if (rExp > lExp)
@@ -206,7 +206,6 @@ namespace MathExtensions
 				return value + 1;
 		}
 
-
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal static UInt128 GetSignificand(Quadruple quad)
 		{
@@ -224,7 +223,6 @@ namespace MathExtensions
 		internal static UInt128 AsUInt128(Quadruple quad) => *(UInt128*)&quad;
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal static Quadruple FromUInt128(UInt128 u) => *(Quadruple*)&u;
-
 
 		internal static string FormatQuadruple(Quadruple value, string? format, NumberFormatInfo info)
 		{

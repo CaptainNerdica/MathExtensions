@@ -82,7 +82,7 @@ namespace MathExtensions
 			fixed (void* p = _u)
 			{
 				Span<byte> s = new Span<byte>(p, Bytes);
-				span.Slice(0, Math.Min(Bytes, span.Length)).CopyTo(s);
+				span.Slice(0, System.Math.Min(Bytes, span.Length)).CopyTo(s);
 			}
 		}
 
@@ -92,7 +92,7 @@ namespace MathExtensions
 			UInt128 output;
 			Span<uint> s = new Span<uint>(output._u, DWords);
 			ReadOnlySpan<uint> cast = MemoryMarshal.Cast<T, uint>(span);
-			cast.Slice(0, Math.Min(span.Length, DWords)).CopyTo(s);
+			cast.Slice(0, System.Math.Min(span.Length, DWords)).CopyTo(s);
 			return output;
 		}
 
@@ -260,7 +260,7 @@ namespace MathExtensions
 			uint* o = output._u;
 			int ldw = GetDWordCount(left);
 			int rdw = GetDWordCount(right);
-			int min = Math.Min(ldw, rdw);
+			int min = System.Math.Min(ldw, rdw);
 			for (int i = 0; i < min; ++i)
 			{
 				ulong carry = 0UL;

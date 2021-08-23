@@ -275,7 +275,7 @@ namespace MathExtensions
 					// less digits. One example this fixes is "-60", which would otherwise be formatted as "-6E+01"
 					// since DigitsCount would be 1 and the formatter would almost immediately switch to scientific notation.
 
-					nMaxDigits = Math.Max(number.DigitsCount, QuadruplePrecision);
+					nMaxDigits = System.Math.Max(number.DigitsCount, QuadruplePrecision);
 				}
 				NumberToString(ref sb, ref number, fmt, nMaxDigits, info);
 			}
@@ -421,7 +421,7 @@ namespace MathExtensions
 			//      log10(v) < (mantissaHighBitIdx + exponent) * log10(2) + log10(2) <= log10(v) + log10(2)
 			//      floor(log10(v)) < ceil((mantissaHighBitIdx + exponent) * log10(2)) <= floor(log10(v)) + 1
 			const double Log10V2 = 0.30102999566398119521373889472449;
-			int digitExponent = (int)(Math.Ceiling(((int)(mantissaHighBitIdx) + exponent) * Log10V2 - 0.69));
+			int digitExponent = (int)(System.Math.Ceiling(((int)(mantissaHighBitIdx) + exponent) * Log10V2 - 0.69));
 
 			// Divide value by 10^digitExponent.
 			if (digitExponent > 0)
@@ -1451,7 +1451,7 @@ namespace MathExtensions
 				sb.Append(sDecimal);
 				if ((digPos < 0) && (nMaxDigits > 0))
 				{
-					int zeroes = Math.Min(-digPos, nMaxDigits);
+					int zeroes = System.Math.Min(-digPos, nMaxDigits);
 					sb.Append('0', zeroes);
 					digPos += zeroes;
 					nMaxDigits -= zeroes;
@@ -1596,7 +1596,7 @@ namespace MathExtensions
 			while (--digits >= 0 || value != 0)
 			{
 				uint remainder;
-				(value, remainder) = Math.DivRem(value, 10);
+				(value, remainder) = System.Math.DivRem(value, 10);
 				*(--bufferEnd) = (char)(remainder + '0');
 			}
 			return bufferEnd;

@@ -7,37 +7,20 @@ using System.Threading.Tasks;
 
 namespace MathExtensions
 {
-	public abstract class NDArrayBase<T> : IEnumerable<T>, ICollection<T>, IReadOnlyCollection<T>, IReadOnlyList<T>
+	public abstract class NDArrayBase<T> : INDArray<T>
 	{
-		private Shape _shape;
+		public abstract Span<T> Elements { get; }
 		public abstract T this[int index] { get; set; }
-		public abstract T this[Index index] { get; set; }
-		public Shape Shape
-		{
-			get => _shape;
-			set
-			{
-				if (value.Size != _shape.Size)
-					throw new ArgumentException($"Shapes of size {value.Size} and {_shape.Size} are incompatible", nameof(value));
-				_shape = value;
-			}
-		}
+		public abstract T this[ReadOnlySpan<uint> index] { get; set; }
+		public abstract IShape Shape { get; set; }
 		public int Rank => Shape.Rank;
-		public int Size => Shape.Size;
-		public int Count => Shape.Size;
-
-		public abstract bool IsReadOnly { get; }
-
-		public NDArrayBase()
-		{
-			_shape = Shape.Empty;
-		}
+		public uint Size => Shape.Size;
+		public uint Length => Shape.Size;
 
 		IEnumerator<T> IEnumerable<T>.GetEnumerator() => new Enumerator(this);
 		IEnumerator IEnumerable.GetEnumerator() => new Enumerator(this);
 
 		public abstract void Fill(T value);
-		public abstract NDArrayBase<TCast> Cast<TCast>() where TCast : struct;
 
 		public abstract void Clear();
 		public abstract void Add(T item);
@@ -48,7 +31,7 @@ namespace MathExtensions
 		public class Enumerator : IEnumerator<T>
 		{
 			private readonly NDArrayBase<T> _array;
-			private int _index;
+			private uint _index;
 			private T? _current;
 
 			internal Enumerator(NDArrayBase<T> array)
@@ -65,13 +48,13 @@ namespace MathExtensions
 			void IDisposable.Dispose() => GC.SuppressFinalize(this);
 			bool IEnumerator.MoveNext()
 			{
-				if ((uint)_index < (uint)_array.Size)
+				if (_index < _array.Size)
 				{
-					_current = _array[_index];
+					_current = _array[(int)_index];
 					_index++;
 					return true;
 				}
-				_index = _array.Size + 1;
+				_index = _array.Size + 1U;
 				_current = default;
 				return false;
 			}

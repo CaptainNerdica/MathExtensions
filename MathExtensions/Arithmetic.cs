@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace MathExtensions
 {
-	public unsafe static class Arithmetic
+	internal unsafe static class Arithmetic
 	{
 
 		public static TOut Add<T1, T2, TOut>(T1 left, T2 right) => BuildGetFunc(ref BinaryExprStore<T1, T2, TOut>.Add, &Expression.Add)(left, right);

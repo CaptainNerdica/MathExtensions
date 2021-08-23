@@ -9,15 +9,15 @@ namespace MathExtensions
 {
 	partial class MathQ
 	{
-		public static partial Quadruple Exp(Quadruple q)
+		public static partial Quadruple Exp(Quadruple x)
 		{
-			if (IsNaN(q))
-				return q;
-			int sign = q.Sign;
-			if (!IsInfinity(q))
+			if (IsNaN(x))
+				return x;
+			int sign = x.Sign;
+			if (!IsFinite(x))
 			{
 				if (sign == 0)
-					return q;
+					return x;
 				else
 					return Zero;
 			}
