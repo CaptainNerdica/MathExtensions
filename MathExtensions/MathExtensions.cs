@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace MathExtensions
 {
-	public static class Math
+	public static class MathExtensions
 	{
 		public static int DivideRoundAway(int a, int b)
 		{

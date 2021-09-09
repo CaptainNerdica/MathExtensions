@@ -16,6 +16,12 @@ namespace MathExtensions
 	public unsafe struct Vector2D : IEquatable<Vector2D>, IFormattable
 	{
 		public double X, Y;
+
+		public static Vector2D Zero { get; } = new Vector2D(0);
+		public static Vector2D One { get; } = new Vector2D(1);
+		public static Vector2D UnitX { get; } = new Vector2D(1, 0);
+		public static Vector2D UnitY { get; } = new Vector2D(0, 1);
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public Vector2D(double x, double y)
 		{
@@ -32,11 +38,6 @@ namespace MathExtensions
 			this = Unsafe.ReadUnaligned<Vector2D>(ref Unsafe.As<double, byte>(ref MemoryMarshal.GetReference(values)));
 		}
 
-		public static Vector2D Zero { get; } = new Vector2D(0);
-		public static Vector2D One { get; } = new Vector2D(1);
-		public static Vector2D UnitX { get; } = new Vector2D(1, 0);
-		public static Vector2D UnitY { get; } = new Vector2D(0, 1);
-
 		public override readonly string ToString() => ToString("G", CultureInfo.CurrentCulture);
 		public readonly string ToString(string? format) => ToString(format, CultureInfo.CurrentCulture);
 		public readonly string ToString(string? format, IFormatProvider? provider)
@@ -52,28 +53,77 @@ namespace MathExtensions
 			return sb.ToString();
 		}
 
-		public override bool Equals(object? other) => other is Vector2D && Equals(other);
-		public bool Equals(Vector2D other) => this == other;
-		public override int GetHashCode() => HashCode.Combine(X, Y);
-
-		public double Length { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => System.Math.Sqrt(LengthSquared); }
-		public double LengthSquared
+		#region CopyTo
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public readonly void CopyTo(double[] array) => CopyTo(array, 0);
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public readonly void CopyTo(double[] array, int index)
 		{
-			[MethodImpl(MethodImplOptions.AggressiveInlining)]
-			get
-			{
-				if (!Sse2.IsSupported)
-					return X * X + Y * Y;
-				Vector128<double> v = LoadVector128(Unsafe.AsPointer(ref this));
-				if (Sse41.IsSupported)
-					return Sse41.DotProduct(v, v, 0x31).ToScalar();
-				Vector128<double> m = Sse2.Multiply(v, v);
-				if (Sse3.IsSupported)
-					return Sse3.HorizontalAdd(m, m).ToScalar();
-				Vector128<double> m1 = Sse2.Shuffle(m.AsInt32(), 0b0100_1110).AsDouble();
-				return Sse2.Add(m, m1).ToScalar();
-			}
+			if (array is null)
+				throw new ArgumentNullException(nameof(array), "Array is null");
+			if (array.Length + index < 2)
+				throw new ArgumentException("The number of elements in the current instance is greater than in the array.", nameof(array));
+			if (array.Rank != 1)
+				throw new RankException("Array is multidimensional.");
+			Unsafe.WriteUnaligned(ref Unsafe.As<double, byte>(ref MemoryMarshal.GetArrayDataReference(array)), this);
 		}
+		public readonly void CopyTo(Span<double> destination)
+		{
+			if (destination.Length < 2)
+				throw new ArgumentException("Destination too short.", nameof(destination));
+			Unsafe.WriteUnaligned(ref Unsafe.As<double, byte>(ref MemoryMarshal.GetReference(destination)), this);
+		}
+		public readonly bool TryCopyTo(Span<double> destination)
+		{
+			if (destination.Length < 2)
+				return false;
+			Unsafe.WriteUnaligned(ref Unsafe.As<double, byte>(ref MemoryMarshal.GetReference(destination)), this);
+			return true;
+		}
+		#endregion
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public readonly double Length()
+		{
+			if (Sse2.IsSupported)
+			{
+				fixed (void* p = &this)
+				{
+					Vector128<double> v = LoadVector128(p);
+					if (Sse41.IsSupported)
+						return Sse2.SqrtScalar(Sse41.DotProduct(v, v, 0x31)).ToScalar();
+					Vector128<double> m = Sse2.Multiply(v, v);
+					if (Sse3.IsSupported)
+						return Sse2.SqrtScalar(Sse3.HorizontalAdd(m, m)).ToScalar();
+					Vector128<double> m1 = Sse2.Shuffle(m.AsInt32(), 0b0100_1110).AsDouble();
+					return Sse2.SqrtScalar(Sse2.Add(m, m1)).ToScalar();
+				}
+			}
+			return Math.Sqrt(X * X + Y * Y);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public readonly double LengthSquared()
+		{
+			if (Sse2.IsSupported)
+			{
+				fixed (void* p = &this)
+				{
+					Vector128<double> v = LoadVector128(p);
+					if (Sse41.IsSupported)
+						return Sse41.DotProduct(v, v, 0x31).ToScalar();
+					Vector128<double> m = Sse2.Multiply(v, v);
+					if (Sse3.IsSupported)
+						return Sse3.HorizontalAdd(m, m).ToScalar();
+					Vector128<double> m1 = Sse2.Shuffle(m.AsInt32(), 0b0100_1110).AsDouble();
+					return Sse2.Add(m, m1).ToScalar();
+				}
+			}
+			return X * X + Y * Y;
+		}
+
+		public readonly override int GetHashCode() => HashCode.Combine(X, Y);
+		public readonly override bool Equals(object? other) => other is Vector2D && Equals(other);
+		public readonly bool Equals(Vector2D other) => this == other;
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static Vector128<double> LoadVector128(void* ptr) => Sse2.LoadVector128((double*)ptr);
@@ -174,10 +224,12 @@ namespace MathExtensions
 		{
 			if (!Sse2.IsSupported)
 				return left.X != right.X || left.Y != right.Y;
-			return (Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(&left), LoadVector128(&right))) & 3) != 3; 
+			return (Sse2.MoveMask(Sse2.CompareEqual(LoadVector128(&left), LoadVector128(&right))) & 3) != 3;
 		}
 		#endregion
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static implicit operator Vector2D((double x, double y) value) => new Vector2D(value.x, value.y);
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static implicit operator Vector2D(Vector2 vector) => new Vector2D(vector.X, vector.Y);
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -186,19 +238,20 @@ namespace MathExtensions
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static Vector2D Abs(Vector2D value)
 		{
+			const ulong mask = 0x7FFF_FFFF_FFFF_FFFF;
 			if (!Sse2.IsSupported)
-				return new Vector2D(System.Math.Abs(value.X), System.Math.Abs(value.Y));
+				return new Vector2D(Math.Abs(value.X), Math.Abs(value.Y));
 			Vector128<double> v = LoadVector128(&value);
-			v = Sse2.And(v.AsInt64(), Vector128.Create(0x7FFF_FFFF_FFFF_FFFF, 0x7FFF_FFFF_FFFF_FFFF)).AsDouble();
+			v = Sse2.And(v.AsInt64(), Vector128.Create(mask, mask).AsInt64()).AsDouble();
 			StoreVector128(&value, v);
 			return value;
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static Vector2D Clamp(Vector2D value, Vector2D min, Vector2D max) => Min(Max(value, min), max);
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static double Distance(Vector2D value1, Vector2D value2) => (value1 - value2).Length;
+		public static double Distance(Vector2D value1, Vector2D value2) => (value1 - value2).Length();
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static double DistanceSquared(Vector2D value1, Vector2D value2) => (value1 - value2).LengthSquared;
+		public static double DistanceSquared(Vector2D value1, Vector2D value2) => (value1 - value2).LengthSquared();
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static double Dot(Vector2D value1, Vector2D value2)
 		{
@@ -259,7 +312,7 @@ namespace MathExtensions
 		public static Vector2D Normalize(Vector2D value)
 		{
 			if (!Sse2.IsSupported)
-				return value / value.Length;
+				return value / value.Length();
 			Vector128<double> v = LoadVector128(&value);
 			Vector128<double> dp;
 			if (Sse41.IsSupported)
@@ -312,39 +365,55 @@ namespace MathExtensions
 			return vector;
 		}
 
-#pragma warning disable IDE0060 // Remove unused parameter
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static Vector2D Transform(Vector2D position, Matrix3x2D matrix) => throw new NotImplementedException();
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static Vector2D Transform(Vector2D position, Matrix4x4D matrix) => throw new NotImplementedException();
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static Vector2D Transform(Vector2D value, QuaternionD rotation) => throw new NotImplementedException();
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static Vector2D TransformNormal(Vector2D normal, Matrix3x2D matrix) => throw new NotImplementedException();
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static Vector2D TransformNormal(Vector2D normal, Matrix4x4D matrix) => throw new NotImplementedException();
-#pragma warning restore IDE0060 // Remove unused parameter
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public void CopyTo(double[] array) => CopyTo(array, 0);
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public void CopyTo(double[] array, int index)
+		public static Vector2D Transform(Vector2D position, Matrix3x2D matrix)
 		{
-			if (array is null)
-				throw new NullReferenceException("Array is null");
-			if ((index < 0) || (index >= array.Length))
-				throw new ArgumentOutOfRangeException(nameof(index), "Index out of range");
-			if (array.Length - index < 2)
-				throw new ArgumentException("Number of elements in source greater than destination");
-			Unsafe.CopyBlock(Unsafe.AsPointer(ref array[index]), Unsafe.AsPointer(ref this), (uint)sizeof(Vector2D));
+			return new Vector2D(
+				(position.X * matrix.M11) + (position.Y * matrix.M21) + matrix.M31,
+				(position.X * matrix.M12) + (position.Y * matrix.M22) + matrix.M32
+			);
 		}
-
-		public bool TryCopyTo(Span<float> destination)
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector2D Transform(Vector2D position, Matrix4x4D matrix)
 		{
-			if (destination.Length < 2)
-				return false;
-			Unsafe.WriteUnaligned(ref Unsafe.As<float, byte>(ref MemoryMarshal.GetReference(destination)), this);
-			return true;
+			return new Vector2D(
+				(position.X * matrix.M11) + (position.Y * matrix.M21) + matrix.M41,
+				(position.X * matrix.M12) + (position.Y * matrix.M22) + matrix.M42
+			);
+		}
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector2D Transform(Vector2D value, QuaternionD rotation)
+		{
+			double x2 = rotation.X + rotation.X;
+			double y2 = rotation.Y + rotation.Y;
+			double z2 = rotation.Z + rotation.Z;
+
+			double wz2 = rotation.W * z2;
+			double xx2 = rotation.X * x2;
+			double xy2 = rotation.X * y2;
+			double yy2 = rotation.Y * y2;
+			double zz2 = rotation.Z * z2;
+
+			return new Vector2D(
+				value.X * (1.0f - yy2 - zz2) + value.Y * (xy2 - wz2),
+				value.X * (xy2 + wz2) + value.Y * (1.0f - xx2 - zz2)
+			);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector2D TransformNormal(Vector2D normal, Matrix3x2D matrix)
+		{
+			return new Vector2D(
+				(normal.X * matrix.M11) + (normal.Y * matrix.M21),
+				(normal.X * matrix.M12) + (normal.Y * matrix.M22)
+			);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector2D TransformNormal(Vector2D normal, Matrix4x4D matrix)
+		{
+			return new Vector2D(
+				(normal.X * matrix.M11) + (normal.Y * matrix.M21),
+				(normal.X * matrix.M12) + (normal.Y * matrix.M22)
+			);
 		}
 	}
 }

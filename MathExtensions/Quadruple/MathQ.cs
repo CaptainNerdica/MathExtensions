@@ -12,7 +12,7 @@ namespace MathExtensions
 	public static unsafe partial class MathQ
 	{
 		public static readonly Quadruple PI =			new Quadruple(0x4000_921F_B544_42D1, 0x8469_898C_C517_0B18);
-		public static readonly Quadruple HALF_PI =		new Quadruple(0x3FFF_921F_B544_42D1, 0x8469_898C_C517_01B8);
+		public static readonly Quadruple HALF_PI =		new Quadruple(0x3FFF_921F_B544_42D1, 0x8469_898C_C517_0B18);
 		public static readonly Quadruple TAU =			new Quadruple(0x4001_921F_B544_42D1, 0x8469_898C_C517_0B18);
 		public static readonly Quadruple E =			new Quadruple(0x4000_5BF0_A8B1_4576, 0x9535_5FB8_AC40_4E7A);
 		public static readonly Quadruple SQRT2 =		new Quadruple(0x3FFF_6A09_E667_F3BC, 0xC908_B2FB_1366_EA95);

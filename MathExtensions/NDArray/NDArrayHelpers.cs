@@ -93,7 +93,7 @@ namespace MathExtensions
 				throw new ArgumentException("Buffer is too small.", nameof(buffer));
 			if (0 > index || index >= size)
 				throw new IndexOutOfRangeException();
-			uint v = 1;
+			uint v = 1;	
 			for (int i = 0; i < shape.Length; ++i)
 			{
 				buffer[i] = index / v % shape[i];

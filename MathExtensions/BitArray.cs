@@ -47,7 +47,7 @@ namespace MathExtensions
 		public BitArray(int length)
 		{
 			Count = length;
-			int arrayLength = Math.DivideRoundAway(length, size);
+			int arrayLength = MathExtensions.DivideRoundAway(length, size);
 			_bits = new byte[arrayLength];
 		}
 
@@ -70,7 +70,7 @@ namespace MathExtensions
 			Count = length;
 			if (bits.Length * size < length)
 				throw new ArgumentException("Source is too short", nameof(bits));
-			int arrayLength = Math.DivideRoundAway(length, size);
+			int arrayLength = MathExtensions.DivideRoundAway(length, size);
 			_bits = bits.Slice(0, arrayLength).ToArray();
 			int r = length % size;
 			_bits[^1] &= (byte)((1U << r) - 1);

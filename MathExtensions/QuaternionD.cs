@@ -8,5 +8,6 @@ namespace MathExtensions
 {
 	public struct QuaternionD
 	{
+		public double X, Y, Z, W;
 	}
 }

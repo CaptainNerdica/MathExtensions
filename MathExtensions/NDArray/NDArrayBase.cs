@@ -28,7 +28,7 @@ namespace MathExtensions
 		public abstract void CopyTo(T[] array, int arrayIndex);
 		public abstract bool Remove(T item);
 
-		public class Enumerator : IEnumerator<T>
+		private class Enumerator : IEnumerator<T>
 		{
 			private readonly NDArrayBase<T> _array;
 			private uint _index;
