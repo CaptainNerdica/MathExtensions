@@ -489,7 +489,7 @@ namespace MathExtensions
 				Vector256<double> n = Avx.LoadVector256(&normal.X);
 
 				Vector256<double> m = Avx.Multiply(v, n);
-				Avx.Store(&vector.X, Avx.Subtract(v, Avx.Multiply(Vector256.Create(2 * Sse2.AddScalar(Sse3.HorizontalAdd(m.GetLower(), m.GetLower()), m.GetUpper()).ToScalar()), n)));
+				Avx.Store((double*)&vector, Avx.Subtract(v, Avx.Multiply(Vector256.Create(2 * Sse2.AddScalar(Sse3.HorizontalAdd(m.GetLower(), m.GetLower()), m.GetUpper()).ToScalar()), n)));
 				return vector;
 			}
 			return vector - 2 * Dot(vector, normal) * normal;

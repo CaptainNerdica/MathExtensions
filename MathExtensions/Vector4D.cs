@@ -148,21 +148,29 @@ namespace MathExtensions
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public readonly double Length() => Math.Sqrt(LengthSquared());
+		public readonly double Length()
+		{
+			if (Avx.IsSupported)
+			{
+				void* ptr = Unsafe.AsPointer(ref Unsafe.AsRef(in this));
+				Vector256<double> v = Avx.LoadVector256((double*)ptr);
+				Vector256<double> m = Avx.Multiply(v, v);
+				Vector256<double> a = Avx.HorizontalAdd(m, m);
+				return Sse2.SqrtScalar(Sse2.AddScalar(a.GetLower(), a.GetUpper())).ToScalar();
+			}
+			return Math.Sqrt(X * X + Y * Y + Z * Z + W * W);
+		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public readonly double LengthSquared()
 		{
 			if (Avx.IsSupported)
 			{
-				fixed (void* ptr = &this)
-				{
-					Vector256<double> v = Avx.LoadVector256((double*)ptr);
-					Vector256<double> m0 = Avx.Multiply(v, v);
-					Vector256<double> m1 = Avx.Permute2x128(m0, m0, 0x01);
-					Vector256<double> o = Avx.HorizontalAdd(m0, m1);
-					Vector128<double> l = o.GetLower();
-					return Sse3.HorizontalAdd(l, l).ToScalar();
-				}
+				void* ptr = Unsafe.AsPointer(ref Unsafe.AsRef(in this));
+				Vector256<double> v = Avx.LoadVector256((double*)ptr);
+				Vector256<double> m = Avx.Multiply(v, v);
+				Vector256<double> a = Avx.HorizontalAdd(m, m);
+				return Sse2.AddScalar(a.GetLower(), a.GetUpper()).ToScalar();
 			}
 			return X * X + Y * Y + Z * Z + W * W;
 		}
@@ -178,7 +186,7 @@ namespace MathExtensions
 			const ulong mask = 0x8000_0000_0000_0000;
 			if (Avx.IsSupported)
 			{
-				Avx.Store(&value.X, Avx.Xor(Avx.LoadVector256(&value.X), Vector256.Create(mask, mask, mask, mask).AsDouble()));
+				Avx.Store((double*)&value, Avx.Xor(Vector256.Create(mask).AsDouble(), Avx.LoadVector256(&value.X)));
 				return value;
 			}
 			return new Vector4D(-value.X, -value.Y, -value.Z, -value.W);
@@ -189,7 +197,7 @@ namespace MathExtensions
 		{
 			if (Avx.IsSupported)
 			{
-				Avx.Store(&left.X, Avx.Add(Avx.LoadVector256(&left.X), Avx.LoadVector256(&right.X)));
+				Avx.Store((double*)&left, Avx.Add(Avx.LoadVector256(&left.X), Avx.LoadVector256(&right.X)));
 				return left;
 			}
 			return new Vector4D(left.X + right.X, left.Y + right.Y, left.Z + right.Z, left.W + right.W);
@@ -200,7 +208,7 @@ namespace MathExtensions
 		{
 			if (Avx.IsSupported)
 			{
-				Avx.Store(&left.X, Avx.Subtract(Avx.LoadVector256(&left.X), Avx.LoadVector256(&right.X)));
+				Avx.Store((double*)&left, Avx.Subtract(Avx.LoadVector256(&left.X), Avx.LoadVector256(&right.X)));
 				return left;
 			}
 			return new Vector4D(left.X - right.X, left.Y - right.Y, left.Z - right.Z, left.W - right.W);
@@ -211,7 +219,7 @@ namespace MathExtensions
 		{
 			if (Avx.IsSupported)
 			{
-				Avx.Store(&left.X, Avx.Multiply(Avx.LoadVector256(&left.X), Avx.LoadVector256(&right.X)));
+				Avx.Store((double*)&left, Avx.Multiply(Avx.LoadVector256(&left.X), Avx.LoadVector256(&right.X)));
 				return left;
 			}
 			return new Vector4D(left.X * right.X, left.Y * right.Y, left.Z * right.Z, left.W * right.W);
@@ -222,7 +230,7 @@ namespace MathExtensions
 		{
 			if (Avx.IsSupported)
 			{
-				Avx.Store(&left.X, Avx.Multiply(Avx.LoadVector256(&left.X), Vector256.Create(right)));
+				Avx.Store((double*)&left, Avx.Multiply(Avx.LoadVector256(&left.X), Vector256.Create(right)));
 				return left;
 			}
 			return new Vector4D(left.X * right, left.Y * right, left.Z * right, left.W * right);
@@ -233,7 +241,7 @@ namespace MathExtensions
 		{
 			if (Avx.IsSupported)
 			{
-				Avx.Store(&right.X, Avx.Multiply(Vector256.Create(left), Avx.LoadVector256(&right.X)));
+				Avx.Store((double*)&right, Avx.Multiply(Vector256.Create(left), Avx.LoadVector256(&right.X)));
 				return right;
 			}
 			return new Vector4D(left * right.X, left * right.Y, left * right.Z, left * right.W);
@@ -244,7 +252,7 @@ namespace MathExtensions
 		{
 			if (Avx.IsSupported)
 			{
-				Avx.Store(&left.X, Avx.Divide(Avx.LoadVector256(&left.X), Avx.LoadVector256(&right.X)));
+				Avx.Store((double*)&left, Avx.Divide(Avx.LoadVector256(&left.X), Avx.LoadVector256(&right.X)));
 				return left;
 			}
 			return new Vector4D(left.X / right.X, left.Y / right.Y, left.Z / right.Z, left.W / right.W);
@@ -255,7 +263,7 @@ namespace MathExtensions
 		{
 			if (Avx.IsSupported)
 			{
-				Avx.Store(&left.X, Avx.Divide(Avx.LoadVector256(&left.X), Vector256.Create(right)));
+				Avx.Store((double*)&left, Avx.Divide(Avx.LoadVector256(&left.X), Vector256.Create(right)));
 				return left;
 			}
 			return new Vector4D(left.X / right, left.Y / right, left.Z / right, left.W / right);
@@ -268,6 +276,7 @@ namespace MathExtensions
 				return VectorMath.Equal(Avx.LoadVector256(&left.X), Avx.LoadVector256(&right.X));
 			return left.X == right.X && left.Y == right.Y && left.Z == right.Z && left.W == right.W;
 		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool operator !=(Vector4D left, Vector4D right)
 		{
@@ -290,115 +299,135 @@ namespace MathExtensions
 			const ulong mask = 0x7FFF_FFFF_FFFF_FFFF;
 			if (Avx.IsSupported)
 			{
-				Avx.Store(&value.X, Avx.And(Avx.LoadVector256(&value.X), Vector256.Create(mask).AsDouble()));
+				Avx.Store((double*)&value, Avx.And(Avx.LoadVector256(&value.X), Vector256.Create(mask).AsDouble()));
 				return value;
 			}
 			return new Vector4D(Math.Abs(value.X), Math.Abs(value.Y), Math.Abs(value.Z), Math.Abs(value.W));
 		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static Vector4D Clamp(Vector4D value, Vector4D min, Vector4D max)
 		{
 			if (Avx.IsSupported)
 			{
-				Avx.Store(&value.X, Avx.Max(Avx.LoadVector256(&min.X), Avx.Min(Avx.LoadVector256(&max.X), Avx.LoadVector256(&value.X))));
+				Avx.Store((double*)&value, Avx.Max(Avx.LoadVector256(&min.X), Avx.Min(Avx.LoadVector256(&max.X), Avx.LoadVector256(&value.X))));
 				return value;
 			}
 			return Max(min, Min(max, value));
 		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static double Distance(Vector4D value1, Vector4D value2) => Math.Sqrt(DistanceSquared(value1, value2));
+		public static double Distance(Vector4D value1, Vector4D value2)
+		{
+			if (Avx.IsSupported)
+			{
+				Vector256<double> v = Avx.Subtract(Avx.LoadVector256(&value1.X), Avx.LoadVector256(&value2.X));
+				Vector256<double> m = Avx.Multiply(v, v);
+				m = Avx.HorizontalAdd(m, m);
+				return Sse2.SqrtScalar(Sse2.AddScalar(m.GetLower(), m.GetUpper())).ToScalar();
+			}
+			return Math.Sqrt((value1 - value2).LengthSquared());
+		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static double DistanceSquared(Vector4D value1, Vector4D value2)
 		{
 			if (Avx.IsSupported)
 			{
 				Vector256<double> v = Avx.Subtract(Avx.LoadVector256(&value1.X), Avx.LoadVector256(&value2.X));
-				Vector256<double> m0 = Avx.Multiply(v, v);
-				Vector256<double> m1 = Avx.Permute2x128(m0, m0, 0x01);
-				Vector256<double> o = Avx.HorizontalAdd(m0, m1);
-				Vector128<double> l = o.GetLower();
-				return Sse3.HorizontalAdd(l, l).ToScalar();
+				Vector256<double> m = Avx.Multiply(v, v);
+				Vector256<double> a = Avx.HorizontalAdd(m, m);
+				return Sse2.AddScalar(a.GetLower(), a.GetUpper()).ToScalar();
 			}
 			return (value1 - value2).LengthSquared();
 		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static double Dot(Vector4D value1, Vector4D value2)
 		{
 			if (Avx.IsSupported)
 			{
-				Vector256<double> m0 = Avx.Multiply(Avx.LoadVector256(&value1.X), Avx.LoadVector256(&value2.X));
-				Vector256<double> m1 = Avx.Permute2x128(m0, m0, 0x01);
-				Vector256<double> o = Avx.HorizontalAdd(m0, m1);
-				Vector128<double> l = o.GetLower();
-				return Sse3.HorizontalAdd(l, l).ToScalar();
+				Vector256<double> m = Avx.Multiply(Avx.LoadVector256(&value1.X), Avx.LoadVector256(&value2.X));
+				Vector256<double> a = Avx.HorizontalAdd(m, m);
+				return Sse2.AddScalar(a.GetLower(), a.GetUpper()).ToScalar();
 			}
 			return value1.X * value2.X + value1.Y * value2.Y + value1.Z * value2.Z + value1.W * value2.W;
 		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static Vector4D Lerp(Vector4D value1, Vector4D value2, double amount)
 		{
 			if (Avx.IsSupported)
 			{
-				Vector256<double> v1 = Avx.LoadVector256(&value1.X);
-				Vector256<double> v2 = Avx.LoadVector256(&value2.X);
-				Vector256<double> a1 = Vector256.Create(1 - amount);
-				Vector256<double> a2 = Vector256.Create(amount);
-
-				Vector256<double> m1 = Avx.Multiply(v1, a1);
-				Vector256<double> m2 = Avx.Multiply(v2, a2);
-				Vector256<double> v = Avx.Add(m1, m2);
-				Avx.Store((double*)&value1, v);
+				Avx.Store((double*)&value1, Avx.Add(Avx.Multiply(Avx.LoadVector256(&value1.X), Vector256.Create(1 - amount)), Avx.Multiply(Avx.LoadVector256(&value2.X), Vector256.Create(amount))));
 				return value1;
 			}
 			return (1 - amount) * value1 + amount * value2;
 		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static Vector4D Max(Vector4D value1, Vector4D value2)
 		{
 			if (Avx.IsSupported)
 			{
-				Avx.Store(&value1.X, Avx.Max(Avx.LoadVector256(&value1.X), Avx.LoadVector256(&value2.X)));
+				Avx.Store((double*)&value1, Avx.Max(Avx.LoadVector256(&value1.X), Avx.LoadVector256(&value2.X)));
 				return value1;
 			}
 			return new Vector4D(Math.Max(value1.X, value2.X), Math.Max(value1.Y, value2.Y), Math.Max(value1.Z, value2.Z), Math.Max(value1.W, value2.W));
 		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static Vector4D Min(Vector4D value1, Vector4D value2)
 		{
 			if (Avx.IsSupported)
 			{
-				Avx.Store(&value1.X, Avx.Min(Avx.LoadVector256(&value1.X), Avx.LoadVector256(&value2.X)));
+				Avx.Store((double*)&value1, Avx.Min(Avx.LoadVector256(&value1.X), Avx.LoadVector256(&value2.X)));
 				return value1;
 			}
 			return new Vector4D(Math.Min(value1.X, value2.X), Math.Min(value1.Y, value2.Y), Math.Min(value1.Z, value2.Z), Math.Min(value1.W, value2.W));
 		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static Vector4D Normalize(Vector4D value)
 		{
 			if (Avx.IsSupported)
 			{
 				Vector256<double> v = Avx.LoadVector256((double*)&value);
-				Vector256<double> m0 = Avx.Multiply(v, v);
-				Vector256<double> m1 = Avx.Permute2x128(m0, m0, 0x01);
-				Vector256<double> o = Avx.HorizontalAdd(m0, m1);
-				Vector128<double> l = o.GetLower();
-				Vector256<double> n = Vector256.Create(Sse3.HorizontalAdd(l, l).ToScalar());
-				Vector256<double> d = Avx.Divide(v, n);
-				Avx.Store(&value.X, d);
+				Vector256<double> m = Avx.Multiply(v, v);
+				Vector256<double> a = Avx.HorizontalAdd(m, m);
+				Vector256<double> d = Avx.Divide(v, Vector256.Create(Sse2.SqrtScalar(Sse2.AddScalar(a.GetLower(), a.GetUpper())).ToScalar()));
+				Avx.Store((double*)&value, d);
 				return value;
 			}
 			return value / value.Length();
 		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector4D Reflect(Vector4D vector, Vector4D normal)
+		{
+			if (Avx.IsSupported)
+			{
+				Vector256<double> v = Avx.LoadVector256(&vector.X);
+				Vector256<double> n = Avx.LoadVector256(&normal.X);
+				Vector256<double> m = Avx.Multiply(v, n);
+				Vector256<double> a = Avx.HorizontalAdd(m, m);
+				Avx.Store((double*)&vector, Avx.Subtract(v, Avx.Multiply(Vector256.Create(2 * Sse2.AddScalar(a.GetLower(), a.GetUpper()).ToScalar()), n)));
+				return vector;
+			}
+			return vector - 2 * Dot(vector, normal) * normal;
+		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static Vector4D SquareRoot(Vector4D value)
 		{
 			if (Avx.IsSupported)
 			{
-				Avx.Store(&value.X, Avx.Sqrt(Avx.LoadVector256(&value.X)));
+				Avx.Store((double*)&value, Avx.Sqrt(Avx.LoadVector256(&value.X)));
 				return value;
 			}
 			return new Vector4D(Math.Sqrt(value.X), Math.Sqrt(value.Y), Math.Sqrt(value.Z), Math.Sqrt(value.W));
 		}
+
 #pragma warning disable IDE0079, IDE0060 // Remove unused parameter
 		public static Vector4 Transform(Vector2D position, Matrix4x4D matrix) => throw new NotImplementedException();
 		public static Vector4 Transform(Vector2D value, Quaternion rotation) => throw new NotImplementedException();
