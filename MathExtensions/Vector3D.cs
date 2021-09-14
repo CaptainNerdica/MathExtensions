@@ -17,11 +17,11 @@ namespace MathExtensions
 	{
 		public double X, Y, Z;
 
-		public static Vector3D Zero { get; } = new Vector3D(0);
-		public static Vector3D One { get; } = new Vector3D(1);
-		public static Vector3D UnitX { get; } = new Vector3D(1, 0, 0);
-		public static Vector3D UnitY { get; } = new Vector3D(0, 1, 0);
-		public static Vector3D UnitZ { get; } = new Vector3D(0, 0, 1);
+		public static Vector3D Zero => default;
+		public static Vector3D One => new Vector3D(1);
+		public static Vector3D UnitX => new Vector3D(1, 0, 0);
+		public static Vector3D UnitY => new Vector3D(0, 1, 0);
+		public static Vector3D UnitZ => new Vector3D(0, 0, 1);
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public Vector3D(double x, double y, double z)

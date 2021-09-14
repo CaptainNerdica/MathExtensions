@@ -17,10 +17,10 @@ namespace MathExtensions
 	{
 		public double X, Y;
 
-		public static Vector2D Zero { get; } = new Vector2D(0);
-		public static Vector2D One { get; } = new Vector2D(1);
-		public static Vector2D UnitX { get; } = new Vector2D(1, 0);
-		public static Vector2D UnitY { get; } = new Vector2D(0, 1);
+		public static Vector2D Zero => new Vector2D(0);
+		public static Vector2D One => new Vector2D(1);
+		public static Vector2D UnitX => new Vector2D(1, 0);
+		public static Vector2D UnitY => new Vector2D(0, 1);
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public Vector2D(double x, double y)

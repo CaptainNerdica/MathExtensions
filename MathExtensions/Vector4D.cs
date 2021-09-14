@@ -20,12 +20,12 @@ namespace MathExtensions
 		public double Z;
 		public double W;
 
-		public static Vector4D One { get; } = new Vector4D(1);
-		public static Vector4D Zero { get; } = new Vector4D(0);
-		public static Vector4D UnitX { get; } = new Vector4(1, 0, 0, 0);
-		public static Vector4D UnitY { get; } = new Vector4(0, 1, 0, 0);
-		public static Vector4D UnitZ { get; } = new Vector4(0, 0, 1, 0);
-		public static Vector4D UnitW { get; } = new Vector4(0, 0, 0, 1);
+		public static Vector4D Zero => default;
+		public static Vector4D One => new Vector4D(1);
+		public static Vector4D UnitX => new Vector4(1, 0, 0, 0);
+		public static Vector4D UnitY => new Vector4(0, 1, 0, 0);
+		public static Vector4D UnitZ => new Vector4(0, 0, 1, 0);
+		public static Vector4D UnitW => new Vector4(0, 0, 0, 1);
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public Vector4D(double x, double y, double z, double w)
@@ -313,7 +313,7 @@ namespace MathExtensions
 				Avx.Store((double*)&value, Avx.Max(Avx.LoadVector256(&min.X), Avx.Min(Avx.LoadVector256(&max.X), Avx.LoadVector256(&value.X))));
 				return value;
 			}
-			return Max(min, Min(max, value));
+			return Max(Min(max, value), min);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -428,13 +428,110 @@ namespace MathExtensions
 			return new Vector4D(Math.Sqrt(value.X), Math.Sqrt(value.Y), Math.Sqrt(value.Z), Math.Sqrt(value.W));
 		}
 
-#pragma warning disable IDE0079, IDE0060 // Remove unused parameter
-		public static Vector4 Transform(Vector2D position, Matrix4x4D matrix) => throw new NotImplementedException();
-		public static Vector4 Transform(Vector2D value, Quaternion rotation) => throw new NotImplementedException();
-		public static Vector4 Transform(Vector3D position, Matrix4x4 matrix) => throw new NotImplementedException();
-		public static Vector4 Transform(Vector3D value, QuaternionD rotation) => throw new NotImplementedException();
-		public static Vector4 Transform(Vector4D vector, Matrix4x4D matrix) => throw new NotImplementedException();
-		public static Vector4 Transform(Vector4D value, QuaternionD rotation) => throw new NotImplementedException();
-#pragma warning restore IDE0079, IDE0060 // Remove unused parameter
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector4D Transform(Vector2D position, Matrix4x4D matrix)
+		{
+			return new Vector4D(
+				(position.X * matrix.M11) + (position.Y * matrix.M21) + matrix.M41,
+				(position.X * matrix.M12) + (position.Y * matrix.M22) + matrix.M42,
+				(position.X * matrix.M13) + (position.Y * matrix.M23) + matrix.M43,
+				(position.X * matrix.M14) + (position.Y * matrix.M24) + matrix.M44
+			);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector4D Transform(Vector2D value, QuaternionD rotation)
+		{
+			double x2 = rotation.X + rotation.X;
+			double y2 = rotation.Y + rotation.Y;
+			double z2 = rotation.Z + rotation.Z;
+			double wx2 = rotation.W * x2;
+			double wy2 = rotation.W * y2;
+			double wz2 = rotation.W * z2;
+			double xx2 = rotation.X * x2;
+			double xy2 = rotation.X * y2;
+			double xz2 = rotation.X * z2;
+			double yy2 = rotation.Y * y2;
+			double yz2 = rotation.Y * z2;
+			double zz2 = rotation.Z * z2;
+
+			return new Vector4D(
+				value.X * (1.0 - yy2 - zz2) + value.Y * (xy2 - wz2),
+				value.X * (xy2 + wz2) + value.Y * (1.0 - xx2 - zz2),
+				value.X * (xz2 - wy2) + value.Y * (yz2 + wx2),
+				1.0
+			);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector4D Transform(Vector3D position, Matrix4x4 matrix)
+		{
+			return new Vector4D(
+				(position.X * matrix.M11) + (position.Y * matrix.M21) + (position.Z * matrix.M31) + matrix.M41,
+				(position.X * matrix.M12) + (position.Y * matrix.M22) + (position.Z * matrix.M32) + matrix.M42,
+				(position.X * matrix.M13) + (position.Y * matrix.M23) + (position.Z * matrix.M33) + matrix.M43,
+				(position.X * matrix.M14) + (position.Y * matrix.M24) + (position.Z * matrix.M34) + matrix.M44
+			);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector4D Transform(Vector3D value, QuaternionD rotation)
+		{
+			double x2 = rotation.X + rotation.X;
+			double y2 = rotation.Y + rotation.Y;
+			double z2 = rotation.Z + rotation.Z;
+
+			double wx2 = rotation.W * x2;
+			double wy2 = rotation.W * y2;
+			double wz2 = rotation.W * z2;
+			double xx2 = rotation.X * x2;
+			double xy2 = rotation.X * y2;
+			double xz2 = rotation.X * z2;
+			double yy2 = rotation.Y * y2;
+			double yz2 = rotation.Y * z2;
+			double zz2 = rotation.Z * z2;
+
+			return new Vector4D(
+				value.X * (1.0 - yy2 - zz2) + value.Y * (xy2 - wz2) + value.Z * (xz2 + wy2),
+				value.X * (xy2 + wz2) + value.Y * (1.0 - xx2 - zz2) + value.Z * (yz2 - wx2),
+				value.X * (xz2 - wy2) + value.Y * (yz2 + wx2) + value.Z * (1.0 - xx2 - yy2),
+				1.0
+			);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector4D Transform(Vector4D vector, Matrix4x4D matrix)
+		{
+			return new Vector4D(
+				(vector.X * matrix.M11) + (vector.Y * matrix.M21) + (vector.Z * matrix.M31) + (vector.W * matrix.M41),
+				(vector.X * matrix.M12) + (vector.Y * matrix.M22) + (vector.Z * matrix.M32) + (vector.W * matrix.M42),
+				(vector.X * matrix.M13) + (vector.Y * matrix.M23) + (vector.Z * matrix.M33) + (vector.W * matrix.M43),
+				(vector.X * matrix.M14) + (vector.Y * matrix.M24) + (vector.Z * matrix.M34) + (vector.W * matrix.M44)
+			);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector4D Transform(Vector4D value, QuaternionD rotation)
+		{
+			double x2 = rotation.X + rotation.X;
+			double y2 = rotation.Y + rotation.Y;
+			double z2 = rotation.Z + rotation.Z;
+
+			double wx2 = rotation.W * x2;
+			double wy2 = rotation.W * y2;
+			double wz2 = rotation.W * z2;
+			double xx2 = rotation.X * x2;
+			double xy2 = rotation.X * y2;
+			double xz2 = rotation.X * z2;
+			double yy2 = rotation.Y * y2;
+			double yz2 = rotation.Y * z2;
+			double zz2 = rotation.Z * z2;
+
+			return new Vector4D(
+				value.X * (1.0 - yy2 - zz2) + value.Y * (xy2 - wz2) + value.Z * (xz2 + wy2),
+				value.X * (xy2 + wz2) + value.Y * (1.0 - xx2 - zz2) + value.Z * (yz2 - wx2),
+				value.X * (xz2 - wy2) + value.Y * (yz2 + wx2) + value.Z * (1.0 - xx2 - yy2),
+				value.W);
+		}
 	}
 }
