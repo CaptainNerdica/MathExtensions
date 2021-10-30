@@ -11,12 +11,12 @@ namespace MathExtensions
 	[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Implementation not completed")]
 	public static unsafe partial class MathQ
 	{
-		public static readonly Quadruple PI =			new Quadruple(0x4000_921F_B544_42D1, 0x8469_898C_C517_0B18);
-		public static readonly Quadruple HALF_PI =		new Quadruple(0x3FFF_921F_B544_42D1, 0x8469_898C_C517_0B18);
-		public static readonly Quadruple TAU =			new Quadruple(0x4001_921F_B544_42D1, 0x8469_898C_C517_0B18);
-		public static readonly Quadruple E =			new Quadruple(0x4000_5BF0_A8B1_4576, 0x9535_5FB8_AC40_4E7A);
-		public static readonly Quadruple SQRT2 =		new Quadruple(0x3FFF_6A09_E667_F3BC, 0xC908_B2FB_1366_EA95);
-		internal static readonly Quadruple HALF =		new Quadruple(0x3FFE_0000_0000_0000, 0x0000_0000_0000_0000);
+		public static readonly Quadruple PI =			new Quadruple(0x4000_921F, 0xB544_42D1, 0x8469_898C, 0xC517_0B18);
+		public static readonly Quadruple HALF_PI =		new Quadruple(0x3FFF_921F, 0xB544_42D1, 0x8469_898C, 0xC517_0B18);
+		public static readonly Quadruple TAU =			new Quadruple(0x4001_921F, 0xB544_42D1, 0x8469_898C, 0xC517_0B18);
+		public static readonly Quadruple E =			new Quadruple(0x4000_5BF0, 0xA8B1_4576, 0x9535_5FB8, 0xAC40_4E7A);
+		public static readonly Quadruple SQRT2 =		new Quadruple(0x3FFF_6A09, 0xE667_F3BC, 0xC908_B2FB, 0x1366_EA95);
+		internal static readonly Quadruple HALF =		new Quadruple(0x3FFE_0000, 0x0000_0000, 0x0000_0000, 0x0000_0000);
 
 		/// <summary>
 		/// Returns the absolute value of a quadruple-precision floating-point number.
@@ -66,7 +66,7 @@ namespace MathExtensions
 		public static Quadruple CopySign(Quadruple x, Quadruple y)
 		{
 			QuadUnion* r = (QuadUnion*)&x;
-			r->i._u[3] = (r->i._u[3] & 0x7FFF_FFFF) | (y._b[3] & 0x8000_0000);
+			*&r->i._u3 = (r->i._u3 & 0x7FFF_FFFF) | (y._b3 & 0x8000_0000);
 			return r->x;
 		}
 		public static Quadruple Cos(Quadruple x) => throw new NotImplementedException();
@@ -108,7 +108,7 @@ namespace MathExtensions
 		public static unsafe partial Quadruple Round(Quadruple value);
 		public static Quadruple ScaleB(Quadruple x, int n) => throw new NotImplementedException();
 		public static int Sign(Quadruple x) => IsNaN(x) ? throw new ArithmeticException("Function does not accept floating point Not-a-Number values.") : (IsZero(x) ? 0 : (IsNegative(x) ? -1 : 1));
-		public static partial Quadruple Sin(Quadruple x);
+		public static Quadruple Sin(Quadruple x) => throw new NotImplementedException();
 		public static (Quadruple Sin, Quadruple Cos) SinCos(Quadruple x) => throw new NotImplementedException();
 		public static Quadruple Sinh(Quadruple x) => throw new NotImplementedException();
 		public static partial Quadruple Sqrt(Quadruple x);

@@ -28,7 +28,7 @@ namespace MathExtensions
 		{
 			Span<byte> b = stackalloc byte[14];
 			random.NextBytes(b);
-			UInt128 s = new UInt128(b);
+			UInt128 s = default;
 			throw new NotImplementedException();
 		}
 	}

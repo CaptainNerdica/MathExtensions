@@ -64,36 +64,14 @@ namespace MathExtensions
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public UInt256(UInt128 low, UInt128 high)
 		{
-			fixed (void* b = _u)
-			{
-				ulong* p = (ulong*)b;
-				p[0] = ((ulong*)low._u)[0];
-				p[1] = ((ulong*)low._u)[1];
-				p[2] = ((ulong*)high._u)[0];
-				p[3] = ((ulong*)high._u)[1];
-			}
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public UInt256(ReadOnlySpan<uint> span) : this(MemoryMarshal.Cast<uint, byte>(span)) { }
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public UInt256(ReadOnlySpan<byte> span)
-		{
-			fixed (void* p = _u)
-			{
-				Span<byte> s = new Span<byte>(p, Bytes);
-				span.Slice(0, System.Math.Min(Bytes, span.Length)).CopyTo(s);
-			}
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static UInt128 FromSpan<T>(ReadOnlySpan<T> span) where T : unmanaged
-		{
-			UInt128 output;
-			Span<uint> s = new Span<uint>(output._u, DWords);
-			ReadOnlySpan<uint> cast = MemoryMarshal.Cast<T, uint>(span);
-			cast.Slice(0, System.Math.Min(span.Length, DWords)).CopyTo(s);
-			return output;
+			_u[0] = low._u0;
+			_u[1] = low._u1;
+			_u[2] = low._u2;
+			_u[3] = low._u3;
+			_u[4] = high._u0;
+			_u[5] = high._u1;
+			_u[6] = high._u2;
+			_u[7] = high._u3;
 		}
 
 		public override bool Equals(object? obj) => obj is UInt256 other && Equals(other);
@@ -106,9 +84,9 @@ namespace MathExtensions
 				return u[0] == o[0] && u[1] == o[1] && u[2] == o[2] && u[3] == o[3];
 			}
 		}
-		public override int GetHashCode() => HashCode.Combine(_u[0], _u[1], _u[2], _u[3], _u[4], _u[5], _u[6], _u[7]);
+		public override readonly int GetHashCode() => HashCode.Combine(_u[0], _u[1], _u[2], _u[3], _u[4], _u[5], _u[6], _u[7]);
 
-		public override string ToString()
+		public override readonly string ToString()
 		{
 			// Numbers used to calculate the number of base 10 digits from the number of base 2 digits.
 			// The ratio between nln2 and nln10 is ~log10(2) and will give the max amount of base 10 digits
@@ -133,7 +111,7 @@ namespace MathExtensions
 			string s = new string(dest.TrimStart(stackalloc char[] { '\0', '0' }));
 			return s;
 		}
-		internal string ToStringHex()
+		internal readonly string ToStringHex()
 		{
 			StringBuilder sb = new StringBuilder();
 			fixed (void* u = _u)
@@ -168,9 +146,9 @@ namespace MathExtensions
 			if (value == Zero) return 0;
 			int c = HighDWordIdx(value);
 			if (Lzcnt.IsSupported)
-				return c * 32 + (int)Lzcnt.LeadingZeroCount(value._u[c]);
+				return c * 32 + 31 - (int)Lzcnt.LeadingZeroCount(value._u[c]);
 			else if (ArmBase.IsSupported)
-				return c * 32 + ArmBase.LeadingZeroCount(value._u[c]);
+				return c * 32 + 31 - ArmBase.LeadingZeroCount(value._u[c]);
 			else
 			{
 				for (int i = 31; i >= 0; --i)
@@ -179,7 +157,7 @@ namespace MathExtensions
 						return i;
 				}
 			}
-			return 0; // Should never be reached.
+			return 0;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -260,7 +238,7 @@ namespace MathExtensions
 			uint* o = output._u;
 			int ldw = GetDWordCount(left);
 			int rdw = GetDWordCount(right);
-			int min = System.Math.Min(ldw, rdw);
+			int min = Math.Min(ldw, rdw);
 			for (int i = 0; i < min; ++i)
 			{
 				ulong carry = 0UL;
@@ -416,41 +394,38 @@ namespace MathExtensions
 		}
 		public static UInt256 operator ~(UInt256 value)
 		{
-
+			UInt256 o;
+			if (Avx.IsSupported)
 			{
-				UInt256 o;
-				if (Avx.IsSupported)
-				{
-					Vector256<uint> v = Avx.LoadVector256((uint*)&value);
-					Vector256<uint> ov;
-					if (Avx2.IsSupported)
-						ov = Avx2.Xor(v, Vector256<uint>.AllBitsSet);
-					else
-						ov = Avx.Xor(v.AsDouble(), Vector256<double>.AllBitsSet).AsUInt32();
-					Avx.Store((uint*)&o, ov);
-				}
-				else if (Sse2.IsSupported)
-				{
-					Vector128<uint> vl = Sse2.LoadVector128((uint*)&value);
-					Vector128<uint> vh = Sse2.LoadVector128((uint*)&value + 4);
-					Vector128<uint> ovl = Sse2.Xor(vl, Vector128<uint>.AllBitsSet);
-					Vector128<uint> ovh = Sse2.Xor(vh, Vector128<uint>.AllBitsSet);
-					Sse2.Store((uint*)&o, ovl);
-					Sse2.Store((uint*)&o + 4, ovh);
-				}
-				else if (AdvSimd.IsSupported)
-				{
-					Vector128<uint> vl = AdvSimd.LoadVector128((uint*)&value);
-					Vector128<uint> vh = AdvSimd.LoadVector128((uint*)&value + 4);
-					Vector128<uint> ovl = AdvSimd.Not(vl);
-					Vector128<uint> ovh = AdvSimd.Not(vh);
-					AdvSimd.Store((uint*)&o, ovl);
-					AdvSimd.Store((uint*)&o + 4, ovh);
-				}
+				Vector256<uint> v = Avx.LoadVector256((uint*)&value);
+				Vector256<uint> ov;
+				if (Avx2.IsSupported)
+					ov = Avx2.Xor(v, Vector256<uint>.AllBitsSet);
 				else
-					return new UInt256(~value._u[0], ~value._u[1], ~value._u[2], ~value._u[3], ~value._u[4], ~value._u[5], ~value._u[6], ~value._u[7]);
-				return o;
+					ov = Avx.Xor(v.AsDouble(), Vector256<double>.AllBitsSet).AsUInt32();
+				Avx.Store((uint*)&o, ov);
 			}
+			else if (Sse2.IsSupported)
+			{
+				Vector128<uint> vl = Sse2.LoadVector128((uint*)&value);
+				Vector128<uint> vh = Sse2.LoadVector128((uint*)&value + 4);
+				Vector128<uint> ovl = Sse2.Xor(vl, Vector128<uint>.AllBitsSet);
+				Vector128<uint> ovh = Sse2.Xor(vh, Vector128<uint>.AllBitsSet);
+				Sse2.Store((uint*)&o, ovl);
+				Sse2.Store((uint*)&o + 4, ovh);
+			}
+			else if (AdvSimd.IsSupported)
+			{
+				Vector128<uint> vl = AdvSimd.LoadVector128((uint*)&value);
+				Vector128<uint> vh = AdvSimd.LoadVector128((uint*)&value + 4);
+				Vector128<uint> ovl = AdvSimd.Not(vl);
+				Vector128<uint> ovh = AdvSimd.Not(vh);
+				AdvSimd.Store((uint*)&o, ovl);
+				AdvSimd.Store((uint*)&o + 4, ovh);
+			}
+			else
+				return new UInt256(~value._u[0], ~value._u[1], ~value._u[2], ~value._u[3], ~value._u[4], ~value._u[5], ~value._u[6], ~value._u[7]);
+			return o;
 		}
 		public static UInt256 operator &(UInt256 left, UInt256 right)
 		{
@@ -583,7 +558,7 @@ namespace MathExtensions
 		public static bool operator >=(UInt256 left, UInt256 right) => left.CompareTo(right) >= 0;
 		public static bool operator <=(UInt256 left, UInt256 right) => left.CompareTo(right) <= 0;
 
-		public static implicit operator UInt256(UInt128 u) => new UInt256(u._u[0], u._u[1], u._u[2], u._u[3], 0, 0, 0, 0);
+		public static implicit operator UInt256(UInt128 u) => new UInt256(u, default);
 		public static explicit operator UInt128(UInt256 u) => new UInt128(u._u[0], u._u[1], u._u[2], u._u[3]);
 
 		public static implicit operator UInt256(uint u) => new UInt256(u, 0, 0, 0, 0, 0, 0, 0);

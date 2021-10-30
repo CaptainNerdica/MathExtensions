@@ -1,60 +1,55 @@
-﻿using MathExtensions;
+﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Running;
+using MathExtensions;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
+using System.IO;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
 namespace ConsoleTester
 {
-	class Program
+	static class Program
 	{
 		public unsafe static void Main()
 		{
-			Process p = Process.GetCurrentProcess();
-			p.ProcessorAffinity = (IntPtr)0b00_00_00_00_00_00_01_00;
+			Console.Read();
 			Random r = new Random();
-			Span<Vector4D> v = stackalloc Vector4D[] { Vector4D.Normalize((r.NextDouble(), r.NextDouble(), r.NextDouble(), r.NextDouble())), Vector4D.Normalize((r.NextDouble(), r.NextDouble(), r.NextDouble(), r.NextDouble())) };
-			var a = stackalloc double[2];
-			long iterations = 1L << 32;
+			Span<byte> buff = stackalloc byte[sizeof(UInt128)];
+			r.NextBytes(buff);
+			UInt128 u = MemoryMarshal.Read<UInt128>(buff);
+			int s = r.Next(128);
 
-			Console.WriteLine("Warm up");
-			MethodTiming.TimeMethod(Benchmarks.D, iterations, new Vector4D(r.NextSingle(), r.NextSingle(), r.NextSingle(), r.NextSingle()), new Vector4D(r.NextSingle(), r.NextSingle(), r.NextSingle(), r.NextSingle()), out _);
-
-			Console.WriteLine($"{v[0]:G5}\n{v[1]:G5}");
-			GC.TryStartNoGCRegion(1 << 20);
-			long t1 = MethodTiming.TimeMethod(Benchmarks.Dot1, iterations, v[0], v[1], out a[0]);
-			GC.EndNoGCRegion();
-			GC.Collect();
-			Console.WriteLine($"Dot1:\t\t{(double)t1 / iterations,4:G4}, {a[0],7:G7}");
-
-			GC.TryStartNoGCRegion(1 << 20);
-			long t2 = MethodTiming.TimeMethod(Benchmarks.Dot1, iterations, v[0], v[1], out a[1]);
-			GC.EndNoGCRegion();
-			GC.Collect();
-			Console.WriteLine($"Dot2:\t\t{(double)t2 / iterations,4:G4}, {a[1],7:G7}");
+			BenchmarkRunner.Run<Benchmarks>();
 		}
 	}
 
-	public static unsafe class Benchmarks
+	[DisassemblyDiagnoser(exportCombinedDisassemblyReport: true)]
+	[RankColumn]
+	public unsafe class Benchmarks
 	{
-		internal static double D(Vector4D v1, Vector4D v2) => Vector4D.Dot(v1, v2);
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static double Dot1(Vector4D value1, Vector4D value2)
-		{
-			Vector256<double> m = Avx.Multiply(Avx.LoadVector256(&value1.X), Avx.LoadVector256(&value2.X));
-			return Sse2.AddScalar(Sse3.HorizontalAdd(m.GetLower(), m.GetLower()), Sse3.HorizontalAdd(m.GetUpper(), m.GetUpper())).ToScalar();
-		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static double Dot2(Vector4D value1, Vector4D value2)
+		public static IEnumerable<object[]> Data()
 		{
-			Vector256<double> m = Avx.Multiply(Avx.LoadVector256(&value1.X), Avx.LoadVector256(&value2.X));
-			m = Avx.HorizontalAdd(m, m);
-			return Sse2.AddScalar(m.GetLower(), m.GetUpper()).ToScalar();
+			const int count = 4;
+			object[][] o = new object[count][];
+			Random r = new Random(3);
+			Span<byte> bytes = stackalloc byte[16];
+			for (int i = 0; i < count - 1; i++)
+			{
+				r.NextBytes(bytes);
+				o[i] = new object[] { MemoryMarshal.Read<UInt128>(bytes), r.Next(128) };
+			}
+			r.NextBytes(bytes);
+			o[^1] = new object[] { MemoryMarshal.Read<UInt128>(bytes), r.Next(1, 4) * 32 };
+			return o;
 		}
 	}
 }

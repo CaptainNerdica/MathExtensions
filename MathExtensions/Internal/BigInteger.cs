@@ -849,10 +849,10 @@ namespace MathExtensions.Internal
 				SetUInt64(out result, (ulong)value);
 			else
 			{
-				result._blocks[0] = value._u[0];
-				result._blocks[1] = value._u[1];
-				result._blocks[2] = value._u[2];
-				result._blocks[3] = value._u[3];
+				result._blocks[0] = value._u0;
+				result._blocks[1] = value._u1;
+				result._blocks[2] = value._u2;
+				result._blocks[3] = value._u3;
 
 				result._length = 4;
 			}

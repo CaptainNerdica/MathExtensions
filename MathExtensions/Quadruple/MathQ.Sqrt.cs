@@ -21,11 +21,11 @@ namespace MathExtensions
 			bool isOdd = (exponent & 1) == 1;
 			int newExp = exponent / 2;
 			UInt128 s = GetSignificand(x);
-			UInt256 iSqrt = ISqrt(((UInt256)s) << 112);
+			UInt256 iSqrt = ISqrt((UInt256)s << 112);
 			s = (UInt128)iSqrt;
 			int shift = UInt128.HighestBit(s) - 112;
 			newExp -= shift;
-			if (newExp <= MinExponent)
+			if (newExp <= -0x3FFF)
 				return Zero;
 			s <<= shift;
 			s &= FractionMask;

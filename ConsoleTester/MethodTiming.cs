@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -9,10 +10,12 @@ namespace ConsoleTester
 {
 	internal static class MethodTiming
 	{
+		static readonly Action _emptyAction = [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)] () => { };
 		private static long CalculateLoopTime(long iterations)
 		{
 			Stopwatch s = Stopwatch.StartNew();
-			for (long i = 0; i < iterations; i++) { }
+			for (long i = 0; i < iterations; i++)
+				_emptyAction();
 			s.Stop();
 			return s.ElapsedTicks;
 		}

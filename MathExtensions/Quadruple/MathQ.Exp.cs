@@ -21,7 +21,7 @@ namespace MathExtensions
 				else
 					return Zero;
 			}
-			return default;
+			throw new NotImplementedException();
 		}
 	}
 }
