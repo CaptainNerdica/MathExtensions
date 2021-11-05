@@ -12,13 +12,17 @@ namespace MathExtensions
 {
 	internal static class Extensions
 	{
-		public static string ToBinaryString(this byte[] bytes, bool reverse = false)
+		public static string ToBinaryString(this ReadOnlySpan<byte> bytes)
 		{
-			IEnumerable<string> byteArray = bytes.Select(b => Convert.ToString(b, 2).PadLeft(8, '0'));
-			if (reverse)
-				return string.Join("", byteArray.Reverse());
-			else
-				return string.Join("", byteArray);
+			Span<char> chars = bytes.Length <= 128 ? stackalloc char[bytes.Length * 8] : new char[bytes.Length * 8];
+			for (int i = 0; i < bytes.Length; i++)
+			{
+				for (int j = 0; j < 8; j++)
+				{
+					chars[(bytes.Length - i) * 8 - (j + 1)] = (char)('0' + ((bytes[i] >> j) & 1));
+				}
+			}
+			return chars.ToString();
 		}
 	}
 
@@ -28,7 +32,6 @@ namespace MathExtensions
 		{
 			Span<byte> b = stackalloc byte[14];
 			random.NextBytes(b);
-			UInt128 s = default;
 			throw new NotImplementedException();
 		}
 	}

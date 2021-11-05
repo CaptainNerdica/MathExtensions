@@ -104,7 +104,7 @@ namespace MathExtensions
 			return new Quadruple(d._u3 | ((uint)exponent << 16) | ((uint)sign << 31), d._u2, d._u1, d._u0);
 		}
 
-		private static UInt256 _stickyAddSubMask = UInt128.MaxValue >> 2;
+		private static readonly UInt256 _stickyAddSubMask = UInt128.MaxValue >> 2;
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static Quadruple Add(Quadruple left, Quadruple right)
 		{
@@ -139,7 +139,7 @@ namespace MathExtensions
 			}
 
 			UInt256 sum = l + r;
-			int sign = sum[255] ? 1 : 0;
+			int sign = UInt256.HighestBit(sum) >> 7;
 			if (sign == 1)
 				sum = UInt256.TwosComplement(sum);
 
@@ -199,7 +199,7 @@ namespace MathExtensions
 			}
 
 			UInt256 difference = l - r;
-			int sign = difference[255] ? 1 : 0;
+			int sign = UInt256.HighestBit(difference) >> 7;
 			if (sign == 1)
 				difference = UInt256.TwosComplement(difference);
 

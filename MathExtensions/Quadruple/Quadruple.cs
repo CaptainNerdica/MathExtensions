@@ -69,12 +69,12 @@ namespace MathExtensions
 		public static bool IsFinite(Quadruple q) => (q._b3 & 0x7FFF_0000) != 0x7FFF_0000;
 		public static bool IsInfinity(Quadruple q) => (q._b3 & 0x7FFF_FFFF) == 0x7FFF_0000 && q._b2 == 0 && q._b1 == 0 && q._b0 == 0;
 		public static bool IsNaN(Quadruple q) => (q._b3 & 0x7FFF_0000) == 0x7FFF_0000 && !((q._b3 & 0x0000_FFFF) == 0 && q._b2 == 0 && q._b1 == 0 && q._b0 == 0);
-		public static bool IsNegative(Quadruple q) => (q._b3 & 0x8000_0000) == 0x8000_0000;
 		public static bool IsNegativeInfinity(Quadruple q) => q._b3 == 0xFFFF_0000 && q._b2 == 0 && q._b1 == 0 && q._b0 == 0;
 		public static bool IsNormal(Quadruple q) => 0x7FFF > q.Exp && q.Exp > 0;
 		public static bool IsPositive(Quadruple q) => (q._b3 & 0x8000_0000) == 0;
 		public static bool IsPositiveInfinity(Quadruple q) => q._b3 == 0x7FFF_0000 && q._b2 == 0 && q._b1 == 0 && q._b0 == 0;
 		public static bool IsSubnormal(Quadruple q) => q.Exp == 0;
+		internal static bool IsNegative(Quadruple q) => (q._b3 & 0x8000_0000) == 0x8000_0000;
 		internal static bool IsZero(Quadruple q) => (q._b3 & 0x7FFF_FFFF) == 0 && q._b2 == 0 && q._b1 == 0 && q._b0 == 0;
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]

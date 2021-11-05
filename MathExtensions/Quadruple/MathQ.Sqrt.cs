@@ -49,10 +49,10 @@ namespace MathExtensions
 				if (x >= res + bit)
 				{
 					x -= res + bit;
-					res = UInt128.ShiftRight(res) + bit;
+					res = (res >> 1) + bit;
 				}
 				else
-					res = UInt128.ShiftRight(res);
+					res >>= 1;
 				bit >>= 2;
 			}
 			return res;
@@ -73,10 +73,10 @@ namespace MathExtensions
 				if (x >= res + bit)
 				{
 					x -= res + bit;
-					res = UInt256.ShiftRight(res) + bit;
+					res = (res << 1) + bit;
 				}
 				else
-					res = UInt256.ShiftRight(res);
+					res >>= 1;
 				bit >>= 2;
 			}
 			return res;

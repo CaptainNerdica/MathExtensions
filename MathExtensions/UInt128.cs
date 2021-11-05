@@ -256,12 +256,6 @@ namespace MathExtensions
 			return BigIntHelpers.Remainder(left, leftLength, divisor);
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static UInt128 ShiftLeft(UInt128 value) => value << 1;
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static UInt128 ShiftRight(UInt128 value) => value >> 1;
-
 		public static UInt128 operator +(UInt128 left, UInt128 right) => Add(left, right);
 		public static UInt128 operator -(UInt128 left, UInt128 right) => Subtract(left, right);
 		public static UInt128 operator *(UInt128 left, UInt128 right) => Multiply(left, right);
@@ -283,7 +277,7 @@ namespace MathExtensions
 			if (Sse2.IsSupported)
 			{
 				Vector128<uint> v = Sse2.LoadVector128(u);
-				if (rs != 0)
+				if (rs % 32 != 0)
 				{
 					Vector128<uint> l = Sse2.ShiftLeftLogical(v, Vector128.CreateScalarUnsafe(ls).AsUInt32());
 					Vector128<uint> r = Sse2.ShiftRightLogical(v, Vector128.CreateScalarUnsafe(rs).AsUInt32());
@@ -305,7 +299,7 @@ namespace MathExtensions
 			else
 			{
 				uint* s = stackalloc uint[2 * sizeof(UInt128) / sizeof(uint) - 1];
-				if (rs != 0)
+				if (rs % 32 != 0)
 				{
 					s[3] = (u[0] << ls);
 					s[4] = (u[1] << ls) | (u[0] >> rs);
@@ -328,7 +322,7 @@ namespace MathExtensions
 			if (Sse2.IsSupported)
 			{
 				Vector128<uint> v = Sse2.LoadVector128(u);
-				if (rs != 0)
+				if (rs % 32 != 0)
 				{
 					Vector128<uint> r = Sse2.ShiftRightLogical(v, Vector128.CreateScalarUnsafe(rs).AsUInt32());
 					Vector128<uint> l = Sse2.ShiftLeftLogical(v, Vector128.CreateScalarUnsafe(ls).AsUInt32());
@@ -350,7 +344,7 @@ namespace MathExtensions
 			else
 			{
 				uint* s = stackalloc uint[2 * sizeof(UInt128) / sizeof(uint) - 1];
-				if (rs != 0)
+				if (rs % 32 != 0)
 				{
 					s[0] = u[0] >> rs | u[1] << ls;
 					s[1] = u[1] >> rs | u[2] << ls;
@@ -424,7 +418,7 @@ namespace MathExtensions
 				AdvSimd.Store((uint*)&o, ov);
 			}
 			else
-				return new UInt128(left._u0 ^ right._u0, left._u1^ right._u1, left._u2^ right._u2, left._u3^ right._u3);
+				return new UInt128(left._u0 ^ right._u0, left._u1 ^ right._u1, left._u2 ^ right._u2, left._u3 ^ right._u3);
 			return o;
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -446,7 +440,7 @@ namespace MathExtensions
 				AdvSimd.Store((uint*)&o, ov);
 			}
 			else
-				return new UInt128(left._u0| right._u0, left._u1| right._u1, left._u2| right._u2, left._u3| right._u3);
+				return new UInt128(left._u0 | right._u0, left._u1 | right._u1, left._u2 | right._u2, left._u3 | right._u3);
 			return o;
 		}
 
