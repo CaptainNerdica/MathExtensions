@@ -20,7 +20,7 @@ namespace MathExtensions
 		internal const int QWords = 4;
 		internal readonly uint _u0, _u1, _u2, _u3, _u4, _u5, _u6, _u7;
 
-		public static readonly UInt256 MaxValue = new UInt256(ulong.MaxValue, ulong.MaxValue, ulong.MaxValue, ulong.MaxValue);
+		public static readonly UInt256 MaxValue = new UInt256(uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue);
 		public static readonly UInt256 MinValue = default;
 		public static readonly UInt256 Zero = default;
 		public static readonly UInt256 One = 1;
@@ -37,26 +37,7 @@ namespace MathExtensions
 			_u6 = u6;
 			_u7 = u7;
 		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public UInt256(ulong u0, ulong u1, ulong u2, ulong u3)
-		{
-			Unsafe.SkipInit(out _u0);
-			Unsafe.SkipInit(out _u1);
-			Unsafe.SkipInit(out _u2);
-			Unsafe.SkipInit(out _u3);
-			Unsafe.SkipInit(out _u4);
-			Unsafe.SkipInit(out _u5);
-			Unsafe.SkipInit(out _u6);
-			Unsafe.SkipInit(out _u7);
-			fixed (void* b = &_u0)
-			{
-				ulong* p = (ulong*)b;
-				p[0] = u0;
-				p[1] = u1;
-				p[2] = u2;
-				p[3] = u3;
-			}
-		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public UInt256(UInt128 low, UInt128 high)
 		{
@@ -88,7 +69,7 @@ namespace MathExtensions
 			const int nln10 = 568;
 			if (this == MinValue)
 				return "0";
-			int bits = GetBitCount(this);
+			int bits = GetHighestBit(this) + 1;
 			int digits = nln2 * bits / nln10 + 1;
 			Span<char> dest = stackalloc char[digits];
 			fixed (char* buffer = &dest.GetPinnableReference())
@@ -101,8 +82,7 @@ namespace MathExtensions
 					*--p = (char)(remainder + '0');
 				}
 			}
-			string s = new string(dest.TrimStart(stackalloc char[] { '\0', '0' }));
-			return s;
+			return new string(dest.TrimStart('\0').TrimStart('0'));
 		}
 		internal readonly string ToStringHex()
 		{
@@ -113,13 +93,6 @@ namespace MathExtensions
 			return sb.ToString().Trim();
 		}
 
-		private static int GetBitCount(UInt256 value)
-		{
-			for (int i = Bits - 1; i >= 0; --i)
-				if (((int)(((uint*)&value)[i / 32] >> (i % 32)) & 1) == 1)
-					return i + 1;
-			return 1;
-		}
 		internal static int GetHighestBit(UInt256 value)
 		{
 			for (int i = Bits - 1; i >= 0; --i)
@@ -181,8 +154,8 @@ namespace MathExtensions
 			fixed (void* p = &this)
 			{
 				uint* u = (uint*)p;
-				int thisBits = GetBitCount(this);
-				int otherBits = GetBitCount(other);
+				int thisBits = GetHighestBit(this) + 1;
+				int otherBits = GetHighestBit(other) + 1;
 				if (thisBits - otherBits != 0)
 					return thisBits - otherBits;
 				for (int i = (thisBits - 1) / 32; i >= 0; --i)
@@ -424,6 +397,7 @@ namespace MathExtensions
 				return Unsafe.Read<UInt256>(s + 7 - b);
 			}
 		}
+
 		public static UInt256 operator >>(UInt256 value, int bits)
 		{
 			const int bitSize = sizeof(uint) * 8;

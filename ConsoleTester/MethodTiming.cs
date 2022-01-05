@@ -10,12 +10,48 @@ namespace ConsoleTester
 {
 	internal static class MethodTiming
 	{
-		static readonly Action _emptyAction = [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)] () => { };
-		private static long CalculateLoopTime(long iterations)
+		private static class EmptyAction<T>
+		{
+			internal static readonly Action<T> Empty =[MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)] (T value) => { };
+		}
+		private static class EmptyAction<T1, T2>
+		{
+			internal static readonly Action<T1, T2> Empty =[MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)] (T1 v1, T2 v2) => { };
+		}
+		private static class EmptyAction<T1, T2, T3>
+		{
+			internal static readonly Action<T1, T2, T3> Empty =[MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)] (T1 v1, T2 v2, T3 v3) => { };
+		}
+		static readonly Action _emptyAction =[MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)] () => { };
+		private static long CalculateOverhead(long iterations)
 		{
 			Stopwatch s = Stopwatch.StartNew();
 			for (long i = 0; i < iterations; i++)
 				_emptyAction();
+			s.Stop();
+			return s.ElapsedTicks;
+		}
+		private static long CalculateOverhead<T>(long iterations, T value)
+		{
+			Stopwatch s = Stopwatch.StartNew();
+			for (long i = 0; i < iterations; i++)
+				EmptyAction<T>.Empty(value);
+			s.Stop();
+			return s.ElapsedTicks;
+		}
+		private static long CalculateOverhead<T1, T2>(long iterations, T1 v1, T2 v2)
+		{
+			Stopwatch s = Stopwatch.StartNew();
+			for (long i = 0; i < iterations; i++)
+				EmptyAction<T1, T2>.Empty(v1, v2);
+			s.Stop();
+			return s.ElapsedTicks;
+		}
+		private static long CalculateOverhead<T1, T2, T3>(long iterations, T1 v1, T2 v2, T3 v3)
+		{
+			Stopwatch s = Stopwatch.StartNew();
+			for (long i = 0; i < iterations; i++)
+				EmptyAction<T1, T2, T3>.Empty(v1, v2, v3);
 			s.Stop();
 			return s.ElapsedTicks;
 		}
@@ -27,7 +63,7 @@ namespace ConsoleTester
 				_ = method();
 			output = method();
 			s.Stop();
-			long loop = CalculateLoopTime(iterations);
+			long loop = CalculateOverhead(iterations);
 			return s.ElapsedTicks - loop;
 		}
 		public static long TimeMethod<TOut>(Func<long, TOut> method, long iterations, out TOut output)
@@ -37,7 +73,7 @@ namespace ConsoleTester
 				_ = method(i);
 			output = method(iterations - 1);
 			s.Stop();
-			long loop = CalculateLoopTime(iterations);
+			long loop = CalculateOverhead(iterations);
 			return s.ElapsedTicks - loop;
 		}
 		public static long TimeMethod<TIn, TOut>(Func<TIn, TOut> method, long iterations, TIn param1, out TOut output)
@@ -47,7 +83,7 @@ namespace ConsoleTester
 				_ = method(param1);
 			output = method(param1);
 			s.Stop();
-			long loop = CalculateLoopTime(iterations);
+			long loop = CalculateOverhead(iterations, param1);
 			return s.ElapsedTicks - loop;
 		}
 		public static long TimeMethod<TIn, TOut>(Func<TIn, long, TOut> method, long iterations, TIn param1, out TOut output)
@@ -57,7 +93,7 @@ namespace ConsoleTester
 				_ = method(param1, i);
 			output = method(param1, iterations - 1);
 			s.Stop();
-			long loop = CalculateLoopTime(iterations);
+			long loop = CalculateOverhead(iterations, param1);
 			return s.ElapsedTicks - loop;
 		}
 		public static long TimeMethod<T1, T2, TOut>(Func<T1, T2, TOut> method, long iterations, T1 param1, T2 param2, out TOut output)
@@ -67,7 +103,7 @@ namespace ConsoleTester
 				_ = method(param1, param2);
 			output = method(param1, param2);
 			s.Stop();
-			long loop = CalculateLoopTime(iterations);
+			long loop = CalculateOverhead(iterations, param1, param2);
 			return s.ElapsedTicks - loop;
 		}
 		public static long TimeMethod<T1, T2, TOut>(Func<T1, T2, long, TOut> method, long iterations, T1 param1, T2 param2, out TOut output)
@@ -77,7 +113,7 @@ namespace ConsoleTester
 				_ = method(param1, param2, i);
 			output = method(param1, param2, iterations - 1);
 			s.Stop();
-			long loop = CalculateLoopTime(iterations);
+			long loop = CalculateOverhead(iterations, param1, param2);
 			return s.ElapsedTicks - loop;
 		}
 		public static long TimeMethod<T1, T2, T3, TOut>(Func<T1, T2, T3, TOut> method, long iterations, T1 param1, T2 param2, T3 param3, out TOut output)
@@ -87,7 +123,7 @@ namespace ConsoleTester
 				_ = method(param1, param2, param3);
 			output = method(param1, param2, param3);
 			s.Stop();
-			long loop = CalculateLoopTime(iterations);
+			long loop = CalculateOverhead(iterations, param1, param2, param3);
 			return s.ElapsedTicks - loop;
 		}
 		public static long TimeMethod<T1, T2, T3, TOut>(Func<T1, T2, T3, long, TOut> method, long iterations, T1 param1, T2 param2, T3 param3, out TOut output)
@@ -97,7 +133,7 @@ namespace ConsoleTester
 				_ = method(param1, param2, param3, i);
 			output = method(param1, param2, param3, iterations - 1);
 			s.Stop();
-			long loop = CalculateLoopTime(iterations);
+			long loop = CalculateOverhead(iterations, param1, param2, param3);
 			return s.ElapsedTicks - loop;
 		}
 

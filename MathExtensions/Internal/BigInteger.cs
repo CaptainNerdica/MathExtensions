@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace MathExtensions.Internal
 {
-	public unsafe ref partial struct BigInteger
+	internal unsafe ref partial struct BigInteger
 	{
 		// The longest binary mantissa requires: explicit mantissa bits + abs(min exponent)
 		// * Half:     10 +    14 =    24

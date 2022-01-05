@@ -90,7 +90,7 @@ namespace MathExtensions
 
 		public static int HighestBit(UInt128 value)
 		{
-			if (value == Zero) return 0;
+			if (value == default) return 0;
 			int c = HighDWordIdx(value);
 			if (Lzcnt.IsSupported)
 				return c * 32 + 31 - (int)Lzcnt.LeadingZeroCount(((uint*)&value)[c]);
@@ -104,7 +104,7 @@ namespace MathExtensions
 						return i;
 				}
 			}
-			return 0; // Should never be reached.
+			return 0;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -143,59 +143,255 @@ namespace MathExtensions
 
 		public static UInt128 TwosComplement(UInt128 value) => ~value + 1;
 
-		public static UInt128 Add(UInt128 left, UInt128 right)
+		public static UInt128 operator +(UInt128 left, UInt128 right)
 		{
-			Unsafe.SkipInit(out UInt128 v);
-			long carry = 0;
-			long digit;
-
-			for (int i = 0; i < DWords; ++i)
+			uint* lp = (uint*)&left;
+			uint* rp = (uint*)&right;
+			if (Avx2.IsSupported)
 			{
-				digit = ((uint*)&left)[i] + carry + ((uint*)&right)[i];
-				((uint*)&v)[i] = unchecked((uint)digit);
-				carry = digit >> 32;
+				Vector128<uint> l = Sse2.LoadVector128(lp);
+				Vector128<uint> r = Sse2.LoadVector128(rp);
+				Vector256<long> lowMask32 = Vector256.Create(0x0000_0000_FFFF_FFFFL);
+
+				Vector256<long> leftLong = Avx2.ConvertToVector256Int64(l);
+				Vector256<long> rightLong = Avx2.ConvertToVector256Int64(r);
+
+				Vector256<ulong> shifts = Vector256.Create(32UL, 32UL, 32UL, 64UL);
+				Vector256<long> add = Avx2.Add(leftLong, rightLong);
+				Vector256<long> carryVec;
+
+				carryVec = Avx2.ShiftRightLogicalVariable(add, shifts);
+				add = Avx2.And(add, lowMask32);
+				carryVec = Avx2.Permute4x64(carryVec, 0b10_01_00_11);
+				add = Avx2.Add(add, carryVec);
+
+				carryVec = Avx2.ShiftRightLogicalVariable(add, shifts);
+				add = Avx2.And(add, lowMask32);
+				carryVec = Avx2.Permute4x64(carryVec, 0b10_01_00_11);
+				add = Avx2.Add(add, carryVec);
+
+				carryVec = Avx2.ShiftRightLogicalVariable(add, shifts);
+				add = Avx2.And(add, lowMask32);
+				carryVec = Avx2.Permute4x64(carryVec, 0b10_01_00_11);
+				add = Avx2.Add(add, carryVec);
+
+				Vector128<uint> subTrunc = Avx2.PermuteVar8x32(add.AsUInt32(), Vector256.Create(0U, 2U, 4U, 6U, 1U, 3U, 5U, 7U)).GetLower();
+
+				Sse2.Store(lp, subTrunc);
+				return left;
 			}
-			return v;
+			else if (Sse41.IsSupported)
+			{
+				Vector128<uint> l = Sse2.LoadVector128((uint*)&left);
+				Vector128<uint> r = Sse2.LoadVector128((uint*)&right);
+
+				Vector128<long> leftLow = Sse41.ConvertToVector128Int64(l);
+				l = Sse2.Shuffle(l, 0b01_00_11_10);
+				Vector128<long> leftHigh = Sse41.ConvertToVector128Int64(l);
+
+				Vector128<long> rightLow = Sse41.ConvertToVector128Int64(r);
+				r = Sse2.Shuffle(r, 0b01_00_11_10);
+				Vector128<long> rightHigh = Sse41.ConvertToVector128Int64(r);
+
+				Vector128<long> zero = Vector128<long>.Zero;
+				Vector128<long> lowMask32 = Vector128.Create(uint.MaxValue, uint.MaxValue);
+				Vector128<long> addLo, addHi;
+				addLo = Sse2.Add(leftLow, rightLow); 
+				addHi = Sse2.Add(leftHigh, rightHigh);
+				Vector128<long> carryLo, carryHi;
+
+				carryHi = Sse2.ShiftRightLogical(addHi, 0x20);
+				carryLo = Sse2.ShiftRightLogical(addLo, 0x20);
+				addLo = Sse2.And(addLo, lowMask32);
+				addHi = Sse2.And(addHi, lowMask32);
+				carryHi = Sse2.Shuffle(carryLo.AsDouble(), carryHi.AsDouble(), 0b01).AsInt64();
+				carryLo = Sse2.Shuffle(zero.AsDouble(), carryLo.AsDouble(), 0b01).AsInt64();
+				addLo = Sse2.Add(addLo, carryLo);
+				addHi = Sse2.Add(addHi, carryHi);
+
+				carryLo = Sse2.ShiftRightLogical(addLo, 0x20);
+				carryHi = Sse2.ShiftRightLogical(addHi, 0x20);
+				addLo = Sse2.And(addLo, lowMask32);
+				addHi = Sse2.And(addHi, lowMask32);
+				carryHi = Sse2.Shuffle(carryLo.AsDouble(), carryHi.AsDouble(), 0b01).AsInt64();
+				carryLo = Sse2.Shuffle(zero.AsDouble(), carryLo.AsDouble(), 0b01).AsInt64();
+				addLo = Sse2.Add(addLo, carryLo);
+				addHi = Sse2.Add(addHi, carryHi);
+
+				carryLo = Sse2.ShiftRightLogical(addLo, 0x20);
+				carryHi = Sse2.ShiftRightLogical(addHi, 0x20);
+				addLo = Sse2.And(addLo, lowMask32);
+				addHi = Sse2.And(addHi, lowMask32);
+				carryHi = Sse2.Shuffle(carryLo.AsDouble(), carryHi.AsDouble(), 0b01).AsInt64();
+				carryLo = Sse2.Shuffle(zero.AsDouble(), carryLo.AsDouble(), 0b01).AsInt64();
+				addLo = Sse2.Add(addLo, carryLo);
+				addHi = Sse2.Add(addHi, carryHi);
+
+				addLo = Sse2.Shuffle(addLo.AsUInt32(), 0b11_01_10_00).AsInt64();
+				addHi = Sse2.Shuffle(addHi.AsUInt32(), 0b10_00_11_01).AsInt64();
+
+				Vector128<uint> final = Sse41.Blend(addLo.AsSingle(), addHi.AsSingle(), 0b11_00).AsUInt32();
+				Sse2.Store((uint*)&left, final);
+				return left;
+			}
+			long carry, digit;
+
+			digit = (long)lp[0] + rp[0];
+			lp[0] = (uint)digit;
+			carry = digit >> 32;
+
+			digit = lp[1] + carry + rp[1];
+			lp[1] = (uint)digit;
+			carry = digit >> 32;
+
+			digit = lp[2] + carry + rp[2];
+			lp[2] = (uint)digit;
+			carry = digit >> 32;
+
+			digit = lp[3] + carry + rp[3];
+			lp[3] = (uint)digit;
+
+			return left;
 		}
 
-		public static UInt128 Subtract(UInt128 left, UInt128 right)
+		public static UInt128 operator -(UInt128 left, UInt128 right)
 		{
-			Unsafe.SkipInit(out UInt128 v);
-			long carry = 0;
-			long digit;
-
-			for (int i = 0; i < DWords; ++i)
+			uint* lp = (uint*)&left;
+			uint* rp = (uint*)&right;
+			if (Avx2.IsSupported)
 			{
-				digit = ((uint*)&left)[i] + carry - ((uint*)&right)[i];
-				((uint*)&v)[i] = unchecked((uint)digit);
-				carry = digit >> 32;
+				Vector128<uint> l = Sse2.LoadVector128(lp);
+				Vector128<uint> r = Sse2.LoadVector128(rp);
+				Vector256<long> lowMask32 = Vector256.Create(0x0000_0000_FFFF_FFFFL);
+
+				Vector256<long> leftLong = Avx2.ConvertToVector256Int64(l);
+				Vector256<long> rightLong = Avx2.ConvertToVector256Int64(r);
+				leftLong = Avx2.Add(leftLong, Vector256.Create(1, 0, 0, 0));
+				rightLong = Avx2.Xor(rightLong, lowMask32);
+
+				Vector256<ulong> shifts = Vector256.Create(32UL, 32UL, 32UL, 64UL);
+				Vector256<long> sub = Avx2.Add(leftLong, rightLong);
+				Vector256<long> borrow;
+
+				borrow = Avx2.ShiftRightLogicalVariable(sub, shifts);
+				sub = Avx2.And(sub, lowMask32);
+				borrow = Avx2.Permute4x64(borrow, 0b10_01_00_11);
+				sub = Avx2.Add(sub, borrow);
+
+				borrow = Avx2.ShiftRightLogicalVariable(sub, shifts);
+				sub = Avx2.And(sub, lowMask32);
+				borrow = Avx2.Permute4x64(borrow, 0b10_01_00_11);
+				sub = Avx2.Add(sub, borrow);
+
+				borrow = Avx2.ShiftRightLogicalVariable(sub, shifts);
+				sub = Avx2.And(sub, lowMask32);
+				borrow = Avx2.Permute4x64(borrow, 0b10_01_00_11);
+				sub = Avx2.Add(sub, borrow);
+
+				Vector128<uint> subTrunc = Avx2.PermuteVar8x32(sub.AsUInt32(), Vector256.Create(0U, 2U, 4U, 6U, 1U, 3U, 5U, 7U)).GetLower();
+
+				Sse2.Store(lp, subTrunc);
+				return left;
 			}
-			return v;
+			else if (Sse41.IsSupported)
+			{
+				Vector128<uint> l = Sse2.LoadVector128((uint*)&left);
+				Vector128<uint> r = Sse2.LoadVector128((uint*)&right);
+				r = Sse2.Xor(r, Vector128.Create(-1).AsUInt32());
+
+				Vector128<long> leftLow = Sse41.ConvertToVector128Int64(l);
+				leftLow = Sse2.Add(leftLow, Vector128.Create(1, 0));
+				l = Sse2.Shuffle(l, 0b01_00_11_10);
+				Vector128<long> leftHigh = Sse41.ConvertToVector128Int64(l);
+
+				Vector128<long> rightLow = Sse41.ConvertToVector128Int64(r);
+				r = Sse2.Shuffle(r, 0b01_00_11_10);
+				Vector128<long> rightHigh = Sse41.ConvertToVector128Int64(r);
+
+				Vector128<long> zero = Vector128<long>.Zero;
+				Vector128<long> lowMask32 = Vector128.Create(0x0000_0000_FFFF_FFFFL, 0x0000_0000_FFFF_FFFFL);
+				Vector128<long> subLo, subHi;
+				subLo = Sse2.Add(leftLow, rightLow);
+				subHi = Sse2.Add(leftHigh, rightHigh);
+				Vector128<long> borrowLow, borrowHi;
+
+				borrowHi = Sse2.ShiftRightLogical(subHi, 0x20);
+				borrowLow = Sse2.ShiftRightLogical(subLo, 0x20);
+				subLo = Sse2.And(subLo, lowMask32);
+				subHi = Sse2.And(subHi, lowMask32);
+				borrowHi = Sse2.Shuffle(borrowLow.AsDouble(), borrowHi.AsDouble(), 0b01).AsInt64();
+				borrowLow = Sse2.Shuffle(zero.AsDouble(), borrowLow.AsDouble(), 0b01).AsInt64();
+				subLo = Sse2.Add(subLo, borrowLow);
+				subHi = Sse2.Add(subHi, borrowHi);
+
+				borrowLow = Sse2.ShiftRightLogical(subLo, 0x20);
+				borrowHi = Sse2.ShiftRightLogical(subHi, 0x20);
+				subLo = Sse2.And(subLo, lowMask32);
+				subHi = Sse2.And(subHi, lowMask32);
+				borrowHi = Sse2.Shuffle(borrowLow.AsDouble(), borrowHi.AsDouble(), 0b01).AsInt64();
+				borrowLow = Sse2.Shuffle(zero.AsDouble(), borrowLow.AsDouble(), 0b01).AsInt64();
+				subLo = Sse2.Add(subLo, borrowLow);
+				subHi = Sse2.Add(subHi, borrowHi);
+
+				borrowLow = Sse2.ShiftRightLogical(subLo, 0x20);
+				borrowHi = Sse2.ShiftRightLogical(subHi, 0x20);
+				subLo = Sse2.And(subLo, lowMask32);
+				subHi = Sse2.And(subHi, lowMask32);
+				borrowHi = Sse2.Shuffle(borrowLow.AsDouble(), borrowHi.AsDouble(), 0b01).AsInt64();
+				borrowLow = Sse2.Shuffle(zero.AsDouble(), borrowLow.AsDouble(), 0b01).AsInt64();
+				subLo = Sse2.Add(subLo, borrowLow);
+				subHi = Sse2.Add(subHi, borrowHi);
+
+				subLo = Sse2.Shuffle(subLo.AsUInt32(), 0b11_01_10_00).AsInt64();
+				subHi = Sse2.Shuffle(subHi.AsUInt32(), 0b10_00_11_01).AsInt64();
+
+				Vector128<uint> final = Sse41.Blend(subLo.AsSingle(), subHi.AsSingle(), 0b11_00).AsUInt32();
+				Sse2.Store(lp, final);
+				return left;
+			}
+			long digit, carry;
+
+			digit = (long)lp[0] - rp[0];
+			lp[0] = (uint)digit;
+			carry = digit >> 32;
+
+			digit = lp[1] + carry - rp[1];
+			lp[1] = (uint)digit;
+			carry = digit >> 32;
+
+			digit = lp[2] + carry - rp[2];
+			lp[2] = (uint)digit;
+			carry = digit >> 32;
+
+			digit = lp[3] + carry - rp[3];
+			lp[3] = (uint)digit;
+
+			return left;
 		}
 
-		public static UInt128 Multiply(UInt128 left, UInt128 right)
+		public static UInt128 operator *(UInt128 left, UInt128 right)
 		{
-			UInt128 output;
-			uint* l = (uint*)&left;
-			uint* r = (uint*)&right;
-			uint* o = (uint*)&output;
-			int ldw = GetDWordCount(left);
-			int rdw = GetDWordCount(right);
-			int min = Math.Min(ldw, rdw);
-			for (int i = 0; i < min; ++i)
-			{
-				ulong carry = 0UL;
-				for (int j = 0; j + i < DWords; ++j)
-				{
-					ulong digits = o[i + j] + carry + (ulong)l[j] * r[i];
-					o[i + j] = unchecked((uint)digits);
-					carry = digits >> 32;
-				}
-			}
-			return output;
+			UInt128 z;
+			ulong* lp = (ulong*)&left;
+			ulong* rp = (ulong*)&right;
+			ulong* zp = (ulong*)&z;
+			ulong xl = lp[0] & 0xFFFFFFFF;
+			ulong xh = lp[0] >> 32;
+			ulong yl = rp[0] & 0xFFFFFFFF;
+			ulong yh = rp[0] >> 32;
+			ulong ll = xl * yl;
+			ulong lh = xl * yh;
+			ulong hl = xh * yl;
+			ulong hh = xh * yh;
+			ulong m = (ll >> 32) + lh + (hl & 0xFFFFFFFF);
+			ulong l = (ll & 0xFFFFFFFF) | (m << 32);
+			ulong h = (m >> 32) + (hl >> 32) + hh;
+			zp[0] = l;
+			zp[1] = h + lp[0] * rp[1] + lp[1] * rp[0];
+			return z;
 		}
 
-		public static UInt128 Divide(UInt128 dividend, UInt128 divisor)
+		public static UInt128 operator /(UInt128 dividend, UInt128 divisor)
 		{
 			UInt128 output;
 			uint* left = (uint*)&dividend;
@@ -207,7 +403,7 @@ namespace MathExtensions
 			BigIntHelpers.Divide(left, leftLength, right, rightLength, bits, bitsLength);
 			return output;
 		}
-		public static UInt128 Divide(UInt128 dividend, uint divisor)
+		public static UInt128 operator /(UInt128 dividend, uint divisor)
 		{
 			UInt128 output;
 			uint* left = (uint*)&dividend;
@@ -240,7 +436,7 @@ namespace MathExtensions
 			return output;
 		}
 
-		public static UInt128 Remainder(UInt128 dividend, UInt128 divisor)
+		public static UInt128 operator %(UInt128 dividend, UInt128 divisor)
 		{
 			uint* left = (uint*)&dividend;
 			uint* right = (uint*)&divisor;
@@ -249,22 +445,15 @@ namespace MathExtensions
 			BigIntHelpers.Divide(left, leftLength, right, rightLength, null, 0);
 			return dividend;
 		}
-		public static uint Remainder(UInt128 dividend, uint divisor)
+		public static uint operator %(UInt128 dividend, uint divisor)
 		{
 			uint* left = (uint*)&dividend;
 			int leftLength = GetDWordCount(dividend);
 			return BigIntHelpers.Remainder(left, leftLength, divisor);
 		}
 
-		public static UInt128 operator +(UInt128 left, UInt128 right) => Add(left, right);
-		public static UInt128 operator -(UInt128 left, UInt128 right) => Subtract(left, right);
-		public static UInt128 operator *(UInt128 left, UInt128 right) => Multiply(left, right);
-		public static UInt128 operator /(UInt128 left, UInt128 right) => Divide(left, right);
-		public static UInt128 operator /(UInt128 left, uint right) => Divide(left, right);
-		public static UInt128 operator %(UInt128 left, UInt128 right) => Remainder(left, right);
-		public static UInt128 operator %(UInt128 left, uint right) => Remainder(left, right);
-		public static UInt128 operator ++(UInt128 value) => Add(value, 1);
-		public static UInt128 operator --(UInt128 value) => Subtract(value, 1);
+		public static UInt128 operator ++(UInt128 value) => value + One;
+		public static UInt128 operator --(UInt128 value) => value - One;
 
 		public static UInt128 operator <<(UInt128 value, int bits)
 		{
@@ -281,8 +470,7 @@ namespace MathExtensions
 				{
 					Vector128<uint> l = Sse2.ShiftLeftLogical(v, Vector128.CreateScalarUnsafe(ls).AsUInt32());
 					Vector128<uint> r = Sse2.ShiftRightLogical(v, Vector128.CreateScalarUnsafe(rs).AsUInt32());
-					r = Sse2.ShiftLeftLogical128BitLane(r, 0b10_01_00_11);
-					r = Sse2.And(r, Vector128.Create(0, uint.MaxValue, uint.MaxValue, uint.MaxValue));
+					r = Sse2.ShiftLeftLogical128BitLane(r, 0x4);
 					v = Sse2.Or(l, r);
 				}
 				v = b switch
@@ -326,8 +514,7 @@ namespace MathExtensions
 				{
 					Vector128<uint> r = Sse2.ShiftRightLogical(v, Vector128.CreateScalarUnsafe(rs).AsUInt32());
 					Vector128<uint> l = Sse2.ShiftLeftLogical(v, Vector128.CreateScalarUnsafe(ls).AsUInt32());
-					l = Sse2.Shuffle(l, 0b00_11_10_01);
-					l = Sse2.And(l, Vector128.Create(uint.MaxValue, uint.MaxValue, uint.MaxValue, 0));
+					l = Sse2.ShiftRightLogical128BitLane(l, 4);
 					v = Sse2.Or(l, r);
 				}
 				v = b switch
@@ -360,88 +547,88 @@ namespace MathExtensions
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static UInt128 operator ~(UInt128 value)
 		{
-			UInt128 o;
 			if (Sse2.IsSupported)
 			{
 				Vector128<uint> v = Sse2.LoadVector128((uint*)&value);
 				Vector128<uint> ov = Sse2.Xor(v, Vector128<uint>.AllBitsSet);
-				Sse2.Store((uint*)&o, ov);
+				Sse2.Store((uint*)&value, ov);
+				return value;
 			}
 			else if (AdvSimd.IsSupported)
 			{
 				Vector128<uint> v = AdvSimd.LoadVector128((uint*)&value);
 				Vector128<uint> ov = AdvSimd.Xor(v, Vector128<uint>.AllBitsSet);
-				AdvSimd.Store((uint*)&o, ov);
+				AdvSimd.Store((uint*)&value, ov);
+				return value;
 			}
 			else
 				return new UInt128(~value._u0, ~value._u1, ~value._u2, ~value._u3);
-			return o;
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static UInt128 operator &(UInt128 left, UInt128 right)
 		{
-			UInt128 o;
 			if (Sse2.IsSupported)
 			{
 				Vector128<uint> lv = Sse2.LoadVector128((uint*)&left);
 				Vector128<uint> rv = Sse2.LoadVector128((uint*)&right);
 				Vector128<uint> ov = Sse2.And(lv, rv);
-				Sse2.Store((uint*)&o, ov);
+				Sse2.Store((uint*)&left, ov);
+				return left;
 			}
 			else if (AdvSimd.IsSupported)
 			{
 				Vector128<uint> lv = AdvSimd.LoadVector128((uint*)&left);
 				Vector128<uint> rv = AdvSimd.LoadVector128((uint*)&right);
 				Vector128<uint> ov = AdvSimd.And(lv, rv);
-				AdvSimd.Store((uint*)&o, ov);
+				AdvSimd.Store((uint*)&left, ov);
+				return left;
 			}
 			else
 				return new UInt128(left._u0 & right._u0, left._u1 & right._u1, left._u2 & right._u2, left._u3 & right._u3);
-			return o;
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static UInt128 operator ^(UInt128 left, UInt128 right)
 		{
-			UInt128 o;
 			if (Sse2.IsSupported)
 			{
 				Vector128<uint> lv = Sse2.LoadVector128((uint*)&left);
 				Vector128<uint> rv = Sse2.LoadVector128((uint*)&right);
 				Vector128<uint> ov = Sse2.Xor(lv, rv);
-				Sse2.Store((uint*)&o, ov);
+				Sse2.Store((uint*)&left, ov);
+				return left;
 			}
 			else if (AdvSimd.IsSupported)
 			{
 				Vector128<uint> lv = AdvSimd.LoadVector128((uint*)&left);
 				Vector128<uint> rv = AdvSimd.LoadVector128((uint*)&right);
 				Vector128<uint> ov = AdvSimd.Xor(lv, rv);
-				AdvSimd.Store((uint*)&o, ov);
+				AdvSimd.Store((uint*)&left, ov);
+				return left;
 			}
 			else
 				return new UInt128(left._u0 ^ right._u0, left._u1 ^ right._u1, left._u2 ^ right._u2, left._u3 ^ right._u3);
-			return o;
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static UInt128 operator |(UInt128 left, UInt128 right)
 		{
-			UInt128 o;
 			if (Sse2.IsSupported)
 			{
 				Vector128<uint> lv = Sse2.LoadVector128((uint*)&left);
 				Vector128<uint> rv = Sse2.LoadVector128((uint*)&right);
 				Vector128<uint> ov = Sse2.Xor(lv, rv);
-				Sse2.Store((uint*)&o, ov);
+				Sse2.Store((uint*)&left, ov);
+				return left;
 			}
 			else if (AdvSimd.IsSupported)
 			{
 				Vector128<uint> lv = AdvSimd.LoadVector128((uint*)&left);
 				Vector128<uint> rv = AdvSimd.LoadVector128((uint*)&right);
 				Vector128<uint> ov = AdvSimd.Xor(lv, rv);
-				AdvSimd.Store((uint*)&o, ov);
+				AdvSimd.Store((uint*)&left, ov);
+				return left;
 			}
 			else
 				return new UInt128(left._u0 | right._u0, left._u1 | right._u1, left._u2 | right._u2, left._u3 | right._u3);
-			return o;
 		}
 
 		public static bool operator ==(UInt128 left, UInt128 right) => left._u0 == right._u0 && left._u1 == right._u1 && left._u2 == right._u2 && left._u3 == right._u3;
