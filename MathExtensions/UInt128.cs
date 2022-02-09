@@ -12,7 +12,6 @@ using System.Text;
 
 namespace MathExtensions
 {
-	[StructLayout(LayoutKind.Explicit)]
 	public readonly unsafe struct UInt128 : IEquatable<UInt128>, IComparable<UInt128>
 	{
 		internal const int Bits = 128;
@@ -20,13 +19,9 @@ namespace MathExtensions
 		internal const int Words = 8;
 		internal const int DWords = 4;
 		internal const int QWords = 2;
-		[FieldOffset(0)]
 		internal readonly uint _u0;
-		[FieldOffset(4)]
 		internal readonly uint _u1;
-		[FieldOffset(8)]
 		internal readonly uint _u2;
-		[FieldOffset(12)]
 		internal readonly uint _u3;
 
 		public static readonly UInt128 MaxValue = new UInt128(uint.MaxValue, uint.MaxValue, uint.MaxValue, uint.MaxValue);

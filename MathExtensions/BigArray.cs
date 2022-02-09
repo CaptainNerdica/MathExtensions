@@ -71,7 +71,7 @@ namespace MathExtensions
 		void ICollection<T>.CopyTo(T[] array, int arrayIndex)
 		{
 			if (array.Length - arrayIndex > Length)
-				throw new ArgumentException("The number of elements in the source is greater than the available space from arrayIndex to the end of the destination array.", nameof(array));
+				throw new ArgumentException($"The number of elements in the source is greater than the available space from {nameof(arrayIndex)} to the end of the destination array.", nameof(array));
 			int index = 0;
 			for (int i = 0; i < _bins.Length; ++i)
 			{

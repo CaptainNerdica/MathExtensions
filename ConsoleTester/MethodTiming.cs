@@ -56,6 +56,65 @@ namespace ConsoleTester
 			return s.ElapsedTicks;
 		}
 
+		private static (double mult, string units) GetMultiplierUnits(double i)
+		{
+			return i switch
+			{
+				< 1d / 10_000_000 => (1_000_000_000, "ns"),
+				< 1d / 10_000 => (1_000_000, "μs"),
+				< 1d / 10 => (1_000, "ms"),
+				_ => (1, "s")
+			};
+		}
+
+		public static void TestMethod<TOut>(Func<TOut> method, long iterations, long noGCSize = 1 << 24)
+		{
+			GC.Collect();
+			GC.TryStartNoGCRegion(noGCSize);
+			long t = TimeMethod(method, iterations, out TOut v);
+			GC.EndNoGCRegion();
+			Console.WriteLine(v);
+			double its = (double)t / iterations / TimeSpan.TicksPerSecond;
+			(double mult, string units) = GetMultiplierUnits(its);
+			Console.WriteLine($"{method.Method.Name}: {its * mult:N3} {units}/iter");
+		}
+
+		public static void TestMethod<T1, TOut>(Func<T1, TOut> method, long iterations, T1 value1, long noGCSize = 1 << 24)
+		{
+			GC.Collect();
+			GC.TryStartNoGCRegion(noGCSize);
+			long t = TimeMethod(method, iterations, value1, out TOut v);
+			GC.EndNoGCRegion();
+			Console.WriteLine(v);
+			double its = (double)t / iterations / TimeSpan.TicksPerSecond;
+			(double mult, string units) = GetMultiplierUnits(its);
+			Console.WriteLine($"{method.Method.Name}: {its * mult:N3} {units}/iter");
+		}
+
+		public static void TestMethod<T1, T2, TOut>(Func<T1, T2, TOut> method, long iterations, T1 value1, T2 value2, long noGCSize = 1 << 24)
+		{
+			GC.Collect();
+			GC.TryStartNoGCRegion(noGCSize);
+			long t = TimeMethod(method, iterations, value1, value2, out TOut v);
+			GC.EndNoGCRegion();
+			Console.WriteLine(v);
+			double its = (double)t / iterations / TimeSpan.TicksPerSecond;
+			(double mult, string units) = GetMultiplierUnits(its);
+			Console.WriteLine($"{method.Method.Name}: {its * mult:N3} {units}/iter");
+		}
+
+		public static void TestMethod<T1, T2, T3, TOut>(Func<T1, T2, T3, TOut> method, long iterations, T1 value1, T2 value2, T3 value3, long noGCSize = 1 << 24)
+		{
+			GC.Collect();
+			GC.TryStartNoGCRegion(noGCSize);
+			long t = TimeMethod(method, iterations, value1, value2, value3, out TOut v);
+			GC.EndNoGCRegion();
+			Console.WriteLine(v);
+			double its = (double)t / iterations / TimeSpan.TicksPerSecond;
+			(double mult, string units) = GetMultiplierUnits(its);
+			Console.WriteLine($"{method.Method.Name}: {its * mult:N3} {units}/iter");
+		}
+
 		public static long TimeMethod<TOut>(Func<TOut> method, long iterations, out TOut output)
 		{
 			Stopwatch s = Stopwatch.StartNew();

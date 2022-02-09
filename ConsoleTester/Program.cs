@@ -8,12 +8,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using System.Runtime.Versioning;
+using Complex = MathExtensions.Complex;
 
 namespace ConsoleTester
 {
@@ -22,61 +24,31 @@ namespace ConsoleTester
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>")]
 		public unsafe static void Main()
 		{
-			Process p = Process.GetCurrentProcess();
-			p.ProcessorAffinity = (IntPtr)0b0000_0000_0000_0011;
-			p.PriorityClass = ProcessPriorityClass.RealTime;
+			Int128 i0 = 2;
+			Int128 i1 = 1;
 
-			MathExtensions.StrongBox<int> a = 2;
-			var b = a with { Value = 4 };
-			Console.WriteLine(b);
-			MathExtensions.StrongBox<Guid> d = Guid.NewGuid();
-			BenchmarkRunner.Run<Benchmarks>();
+			Int128 i2 = Int128.DivRem(i0, i1, out _);
+			Int128.DivRem(uint.MaxValue, 0x1_0000_0000_0000UL, out _);
 		}
 	}
 
-	[GcServer]
-	[HardwareCounters(
-		HardwareCounter.TotalCycles
-	)]
 	[KeepBenchmarkFiles(false)]
+	//[HardwareCounters(HardwareCounter.TotalCycles, HardwareCounter.Timer)]
 	[DisassemblyDiagnoser(exportCombinedDisassemblyReport: true)]
 	[RankColumn]
 	public unsafe class Benchmarks
 	{
-		//[Benchmark(Baseline = true)]
-		[ArgumentsSource(nameof(Data1))]
-		public UInt128 Op1(UInt128 left, UInt128 right) => left + right;
 
-		[Benchmark(Baseline = true)]
-		[ArgumentsSource(nameof(Data2))]
-		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-		public UInt128_Long Op2(UInt128_Long left, UInt128_Long right) => left + right;
-
-		const int count = 1;
-		const int seed = 7;
-		public static IEnumerable<object[]> Data1()
+		public IEnumerable<object[]> Data()
 		{
-			object[][] o = new object[count][];
-			Random r = new Random(seed);
-			Span<byte> bytes = stackalloc byte[64];
+			const int count = 1;
+			Random r = new Random(3);
+			byte[] s = new byte[128];
 			for (int i = 0; i < count; i++)
 			{
-				r.NextBytes(bytes);
-				o[i] = new object[] { MemoryMarshal.Read<UInt128>(bytes), MemoryMarshal.Read<UInt128>(bytes[16..]) };
+				r.NextBytes(s);
+				yield return new object[] { new Int128(s.AsSpan().Slice(0, 16)), new Int128(s.AsSpan().Slice(16, 16)) };
 			}
-			return o;
-		}
-		public static IEnumerable<object[]> Data2()
-		{
-			object[][] o = new object[count][];
-			Random r = new Random(seed);
-			Span<byte> bytes = stackalloc byte[64];
-			for (int i = 0; i < count; i++)
-			{
-				r.NextBytes(bytes);
-				o[i] = new object[] { MemoryMarshal.Read<UInt128_Long>(bytes), MemoryMarshal.Read<UInt128_Long>(bytes[16..]) };
-			}
-			return o;
 		}
 	}
 }

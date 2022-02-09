@@ -12,7 +12,7 @@ using System.Runtime.CompilerServices;
 namespace MathExtensions
 {
 	[StructLayout(LayoutKind.Sequential)]
-	public readonly struct Complex : IEquatable<Complex>, IFormattable
+	public unsafe readonly struct Complex : IEquatable<Complex>, IFormattable
 	{
 #pragma warning disable IDE0032 // Use auto property
 		public readonly double _real;
@@ -46,26 +46,28 @@ namespace MathExtensions
 		public static bool IsInfinity(Complex value) => double.IsInfinity(value._real) || double.IsInfinity(value._imag);
 		public static bool IsNaN(Complex value) => !IsInfinity(value) && !IsFinite(value);
 
-		public unsafe static double Abs(Complex value)
+		public static double Abs(Complex value) => Math.Sqrt(value._real * value._real + value._imag * value._imag);
+		public static Complex Conjugate(Complex value)
 		{
 			if (Sse2.IsSupported)
 			{
-				Vector128<double> real = Sse2.LoadScalarVector128((double*)&value);
-				Vector128<double> imag = Sse2.LoadScalarVector128((double*)&value + 1);
-				Vector128<double> c = Sse2.Shuffle(real, imag, 0b00);
-				Vector128<double> m = Sse2.Multiply(c, c);
-				Vector128<double> i = Sse2.Shuffle(m.AsInt32(), 0b0100_1110).AsDouble();
-				Vector128<double> a = Sse2.AddScalar(m, i);
-				Vector128<double> root = Sse2.SqrtScalar(a);
-				return root.ToScalar();
+				Sse2.Store((double*)&value, Sse2.Xor(Vector128.Create(0x0000_0000_0000_0000, 0x8000_0000_0000_0000).AsDouble(), Sse2.LoadVector128((double*)&value)));
+				return value;
 			}
-			return System.Math.Sqrt(value._real * value._real + value._imag * value._imag);
+			return new Complex(value._real, -value._imag);
 		}
-		public static Complex Conjugate(Complex value) => new Complex(value._real, -value._imag);
 		public static Complex Reciprocal(Complex value) => value._real == 0 && value._imag == 0 ? Zero : One / value;
 
 		public static Complex operator +(Complex value) => value;
-		public static Complex operator -(Complex value) => new Complex(-value._real, -value._imag);
+		public static Complex operator -(Complex value)
+		{
+			if (Sse2.IsSupported)
+			{
+				Sse2.Store((double*)&value, Sse2.Xor(Vector128.Create(0x8000_0000_0000_0000, 0x8000_0000_0000_0000).AsDouble(), Sse2.LoadVector128((double*)&value)));
+				return value;
+			}
+			return new Complex(-value._real, -value._imag);
+		}
 
 		public static Complex operator +(Complex left, Complex right) => new Complex(left._real + right._real, left._imag + right._imag);
 		public static Complex operator +(Complex left, double right) => new Complex(left._real + right, left._imag);
