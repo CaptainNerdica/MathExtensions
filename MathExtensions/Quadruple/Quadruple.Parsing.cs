@@ -319,6 +319,8 @@ namespace MathExtensions
 
 		private static unsafe uint Dragon4(UInt128 mantissa, int exponent, uint mantissaHighBitIdx, bool hasUnequalMargins, int cutoffNumber, bool isSignificantDigits, Span<byte> buffer, out int decimalExponent)
 		{
+			throw new NotImplementedException();
+#if false
 			int curDigit = 0;
 			BigInteger scale;
 			BigInteger scaledValue;
@@ -724,8 +726,8 @@ namespace MathExtensions
 			uint outputLen = (uint)curDigit;
 			Debug.Assert(outputLen <= buffer.Length);
 			return outputLen;
+#endif
 		}
-
 		private static readonly UInt128 _fracMask = _onePointZero - 1;
 		private static UInt128 ExtractFractionAndBiasedExponent(Quadruple value, out int exponent)
 		{

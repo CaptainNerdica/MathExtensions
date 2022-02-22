@@ -24,7 +24,11 @@ namespace ConsoleTester
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>")]
 		public unsafe static void Main()
 		{
+			//UInt128L u = UInt128L.MaxValue;
+			//string s = u.ToString();
+
 			Int128 i0 = 2;
+			i0.ToString();
 			Int128 i1 = 1;
 
 			Int128 i2 = Int128.DivRem(i0, i1, out _);

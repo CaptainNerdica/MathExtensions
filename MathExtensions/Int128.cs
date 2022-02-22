@@ -45,31 +45,28 @@ public readonly unsafe struct Int128 : IEquatable<Int128>, IComparable<Int128>
 	public override readonly int GetHashCode() => HashCode.Combine(_u0, _u1);
 	public readonly bool Equals(Int128 other) => this == other;
 
-	private static readonly Int128 _ten = 10;
 	public override readonly string ToString()
 	{
-		if (IsZero(this))
-			return "0";
-		if (this == MinValue)
-			return "-170141183460469231731687303715884105728";
-		Int128 value = this;
-		bool isNegative = IsNegative(value);
+		const int maxChars = 39 + 1;	// Maximum length is 39 characters + 1 character for sign.
+		UInt128 value;					// Use an unsigned Int128 because it can store exactly the absolute value
+		bool isNegative = IsNegative(this);
 		if (isNegative)
-			value = -value;
-		Span<char> buffer = stackalloc char[40];
-		int index = buffer.Length - 1;
-		while (!IsZero(value))
+			value = (UInt128)(-this);
+		else
+			value = (UInt128)this;
+		Span<char> buffer = stackalloc char[maxChars];
+		int index = maxChars;
+		do
 		{
-			value = DivRem(value, _ten, out Int128 remainder);
-			buffer[index--] = (char)('0' + remainder._u0);
-		}
+			value = UInt128.DivRem(value, 10, out ulong r);
+			buffer[--index] = (char)('0' + r);
+		} while (!UInt128.IsZero(value));
 		if (isNegative)
-			buffer[index] = '-';
-
-		return buffer.TrimStart(stackalloc char[] { '0', '\0' }).ToString();
+			buffer[--index] = '-';
+		return buffer[index..].ToString();
 	}
 
-	public readonly string ToStringHex()
+	internal readonly string ToStringHex()
 	{
 		const int groups = 16 / sizeof(ushort);
 		const int groupSize = 32 / groups;
@@ -125,9 +122,9 @@ public readonly unsafe struct Int128 : IEquatable<Int128>, IComparable<Int128>
 	public static bool operator <=(Int128 left, Int128 right) => !(left > right);
 
 	public static Int128 operator ~(Int128 value) => new Int128(~value._u1, ~value._u0);
-	public static Int128 operator &(Int128 left, Int128 right) => new Int128(left._u1 & right._u1, left._u1 & right._u0);
-	public static Int128 operator |(Int128 left, Int128 right) => new Int128(left._u1 | right._u1, left._u1 | right._u0);
-	public static Int128 operator ^(Int128 left, Int128 right) => new Int128(left._u1 ^ right._u1, left._u1 ^ right._u0);
+	public static Int128 operator &(Int128 left, Int128 right) => new Int128(left._u1 & right._u1, left._u0 & right._u0);
+	public static Int128 operator |(Int128 left, Int128 right) => new Int128(left._u1 | right._u1, left._u0 | right._u0);
+	public static Int128 operator ^(Int128 left, Int128 right) => new Int128(left._u1 ^ right._u1, left._u0 ^ right._u0);
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static Int128 operator -(Int128 value)
@@ -253,22 +250,21 @@ public readonly unsafe struct Int128 : IEquatable<Int128>, IComparable<Int128>
 			y = -y;
 
 		Int128 quotient = default;
-		Int128 r = default;
+		remainder = default;
 
 		for (int i = 127; i >= 0; --i)
 		{
-			r <<= 1;
-			*&r._u0 |= (x >> i)._u0 & 1;
-			if (r >= y)
+			remainder = ShiftLeftLogical(remainder);
+			remainder |= (x._u1 >> 63) & 1;
+			x = ShiftLeftLogical(x);
+			if (remainder >= y)
 			{
-				r -= y;
+				remainder -= y;
 				quotient = ShiftInLeft(quotient);
 			}
 			else
 				quotient = ShiftLeftLogical(quotient);
 		}
-
-		remainder = r;
 
 		if (newSign > 0)
 		{
@@ -324,7 +320,4 @@ public readonly unsafe struct Int128 : IEquatable<Int128>, IComparable<Int128>
 
 	public static explicit operator Int128(UInt128 value) => Unsafe.As<UInt128, Int128>(ref value);
 	public static explicit operator UInt128(Int128 value) => Unsafe.As<Int128, UInt128>(ref value);
-
-	public static explicit operator Int128(UInt128_L value) => Unsafe.As<UInt128_L, Int128>(ref value);
-	public static explicit operator UInt128_L(Int128 value) => Unsafe.As<Int128, UInt128_L>(ref value);
 }

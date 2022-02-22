@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace MathExtensions.Internal
 {
+#if false
 	internal unsafe ref partial struct BigInteger
 	{
 		// The longest binary mantissa requires: explicit mantissa bits + abs(min exponent)
@@ -974,4 +975,5 @@ namespace MathExtensions.Internal
 			return value >> 5;
 		}
 	}
+#endif
 }

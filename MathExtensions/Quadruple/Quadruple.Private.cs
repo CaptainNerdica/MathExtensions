@@ -50,7 +50,7 @@ namespace MathExtensions
 
 			UInt128 m = (UInt128)(mul >> 112);
 			m &= FractionMask;
-			return new Quadruple(m._u3 | ((uint)exponent << 16) | ((uint)sign << 31), m._u2, m._u1, m._u0);
+			return new Quadruple(BitHelper.GetHigh(&m._u1) | ((uint)exponent << 16) | ((uint)sign << 31), BitHelper.GetLow(&m._u1), BitHelper.GetHigh(&m._u0), BitHelper.GetLow(&m._u0));
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -101,7 +101,7 @@ namespace MathExtensions
 
 			UInt128 d = (UInt128)(div >> 16);
 			d &= FractionMask;
-			return new Quadruple(d._u3 | ((uint)exponent << 16) | ((uint)sign << 31), d._u2, d._u1, d._u0);
+			return new Quadruple(BitHelper.GetHigh(&d._u1) | ((uint)exponent << 16) | ((uint)sign << 31), BitHelper.GetLow(&d._u1), BitHelper.GetHigh(&d._u1), BitHelper.GetLow(&d._u0));
 		}
 
 		private static readonly UInt256 _stickyAddSubMask = UInt128.MaxValue >> 2;
@@ -162,7 +162,7 @@ namespace MathExtensions
 
 			UInt128 s = (UInt128)(sum >> 128);
 			s &= FractionMask;
-			return new Quadruple(s._u3 | ((uint)exponent << 16) | ((uint)(sign ^ lSign) << 31), s._u2, s._u1, s._u0);
+			return new Quadruple(BitHelper.GetHigh(&s._u1) | ((uint)exponent << 16) | ((uint)(sign ^ lSign) << 31), BitHelper.GetLow(&s._u1), BitHelper.GetHigh(&s._u0), BitHelper.GetLow(&s._u0));
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -221,7 +221,7 @@ namespace MathExtensions
 
 			UInt128 d = (UInt128)(difference >> 128);
 			d &= FractionMask;
-			return new Quadruple(d._u3 | ((uint)exponent << 16) | ((uint)(sign ^ lSign) << 31), d._u2, d._u1, d._u0);
+			return new Quadruple(BitHelper.GetHigh(&d._u1) | ((uint)exponent << 16) | ((uint)(sign ^ lSign) << 31), BitHelper.GetLow(&d._u1), BitHelper.GetHigh(&d._u0), BitHelper.GetLow(&d._u0));
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -231,7 +231,7 @@ namespace MathExtensions
 			const int normalBit = 1 << 16;
 			if (IsSubnormal(quad))
 				return UInt128.Zero;
-			return new UInt128(quad._b0, quad._b1, quad._b2, (quad._b3 & mask) | normalBit);
+			return new UInt128(((((ulong)quad._b3 & mask) | normalBit) << 32) | quad._b2, (ulong)quad._b1 << 32 | quad._b0);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]

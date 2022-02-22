@@ -49,7 +49,7 @@ namespace MathExtensions
 		internal const int Bias = 16383;
 		internal const int SignificandBits = 112;
 		internal const int NormalMantissaBits = 113;
-		internal static readonly UInt128 FractionMask = new UInt128(0xFFFF_FFFF, 0xFFFF_FFFF, 0xFFFF_FFFF, 0x0000_FFFF);
+		internal static readonly UInt128 FractionMask = new UInt128(0x0000_FFFF_FFFF_FFFF, 0xFFFF_FFFF_FFFF_FFFF);
 
 		public static readonly Quadruple Epsilon = new Quadruple(0x0000_0000, 0x0000_0000, 0x0000_0000, 0x0000_0001);
 
