@@ -20,9 +20,6 @@ namespace MathExtensions
     /// Uses Subnormal Is Zero for all calculations.
     /// </remarks>
     [StructLayout(LayoutKind.Explicit)]
-#if PREVIEW_FEATURES
-    [RequiresPreviewFeatures]
-#endif
     public unsafe readonly partial struct Quadruple : IComparable, IComparable<Quadruple>, IEquatable<Quadruple>, IFormattable
     {
         [FieldOffset(0)]

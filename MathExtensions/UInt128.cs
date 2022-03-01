@@ -17,10 +17,10 @@ public readonly unsafe partial struct UInt128 : IEquatable<UInt128>, IComparable
 	internal readonly ulong _u0;
 	internal readonly ulong _u1;
 
-	public static UInt128 Zero { get; } = new UInt128(0x0000_0000_0000_0000, 0x0000_0000_0000_0000);
-	public static UInt128 One { get; } = new UInt128(0x0000_0000_0000_0000, 0x0000_0000_0000_0001);
-	public static UInt128 MinValue { get; } = new UInt128(0x0000_0000_0000_0000, 0x0000_0000_0000_0000);
-	public static UInt128 MaxValue { get; } = new UInt128(0xFFFF_FFFF_FFFF_FFFF, 0xFFFF_FFFF_FFFF_FFFF);
+	public static UInt128 Zero => default;
+	public static UInt128 One => new UInt128(0x0000_0000_0000_0000, 0x0000_0000_0000_0001);
+	public static UInt128 MinValue => default;
+	public static UInt128 MaxValue => new UInt128(0xFFFF_FFFF_FFFF_FFFF, 0xFFFF_FFFF_FFFF_FFFF);
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	internal UInt128(ulong hi, ulong lo)

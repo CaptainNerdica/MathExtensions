@@ -11,9 +11,6 @@ using BigInteger = MathExtensions.Internal.BigInteger;
 
 namespace MathExtensions
 {
-#if PREVIEW_FEATURES
-		[RequiresPreviewFeatures]
-#endif
 	internal static unsafe class QuadrupleParsing
 	{
 		internal const int DefaultPrecisionExponentialFormat = 6;

@@ -10,9 +10,6 @@ using static MathExtensions.Quadruple;
 namespace MathExtensions
 {
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Implementation not completed")]
-#if PREVIEW_FEATURES
-    [RequiresPreviewFeatures]
-#endif
     public static unsafe partial class MathQ
     {
         public static readonly Quadruple PI = new Quadruple(0x4000_921F, 0xB544_42D1, 0x8469_898C, 0xC517_0B18);

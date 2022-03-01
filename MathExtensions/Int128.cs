@@ -15,9 +15,6 @@ namespace MathExtensions;
 
 [StructLayout(LayoutKind.Sequential, Size = 16)]
 [DebuggerDisplay("{ToString()}")]
-#if PREVIEW_FEATURES
-[RequiresPreviewFeatures]
-#endif
 public readonly unsafe struct Int128 : IEquatable<Int128>, IComparable<Int128>
 {
 	public readonly ulong _u0;

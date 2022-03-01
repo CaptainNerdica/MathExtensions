@@ -10,9 +10,6 @@ using System.Threading.Tasks;
 namespace MathExtensions
 {
 	[StructLayout(LayoutKind.Explicit)]
-#if PREVIEW_FEATURES
-	[RequiresPreviewFeatures]
-#endif
 	internal struct QuadUnion
 	{
 		[FieldOffset(0)]

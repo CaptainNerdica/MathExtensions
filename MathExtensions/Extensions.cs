@@ -30,9 +30,6 @@ namespace MathExtensions
 
 	public static class RandomExtensions
 	{
-#if PREVIEW_FEATURES
-		[RequiresPreviewFeatures]
-#endif
 		public static Quadruple NextQuadruple(this Random random)
 		{
 			Span<byte> b = stackalloc byte[14];

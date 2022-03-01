@@ -12,9 +12,6 @@ using System.Text;
 
 namespace MathExtensions
 {
-#if PREVIEW_FEATURES
-	[RequiresPreviewFeatures]
-#endif
 	public unsafe readonly struct UInt256 : IEquatable<UInt256>, IComparable<UInt256>
 	{
 		internal const int Bits = 256;
