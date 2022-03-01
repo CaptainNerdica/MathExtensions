@@ -5,12 +5,14 @@ using System.Globalization;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text;
 
 namespace MathExtensions;
+
 [StructLayout(LayoutKind.Sequential, Size = 16)]
 [DebuggerDisplay("{ToString()}")]
-public readonly unsafe struct UInt128 : IEquatable<UInt128>, IComparable<UInt128>
+public readonly unsafe partial struct UInt128 : IEquatable<UInt128>, IComparable<UInt128>, IComparable, IFormattable
 {
 	internal readonly ulong _u0;
 	internal readonly ulong _u1;
@@ -56,6 +58,8 @@ public readonly unsafe struct UInt128 : IEquatable<UInt128>, IComparable<UInt128
 		return buffer[index..].ToString();
 	}
 
+	public readonly string ToString(string? format, IFormatProvider? provider) => ToString();
+
 	internal readonly string ToStringHex()
 	{
 		const int groups = 16 / sizeof(ushort);
@@ -91,6 +95,8 @@ public readonly unsafe struct UInt128 : IEquatable<UInt128>, IComparable<UInt128
 		return 1;
 	}
 
+	public int CompareTo(object? other) => other is UInt128 o ? CompareTo(o) : throw new ArgumentException("Instances are not the same type", nameof(other));
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	internal static bool IsZero(UInt128 value) => (value._u1 | value._u0) == 0;
 	public static bool operator ==(UInt128 left, UInt128 right) => ((left._u0 - right._u0) | (left._u1 - right._u1)) == 0;
@@ -106,8 +112,9 @@ public readonly unsafe struct UInt128 : IEquatable<UInt128>, IComparable<UInt128
 	public static UInt128 operator |(UInt128 left, UInt128 right) => new UInt128(left._u1 | right._u1, left._u0 | right._u0);
 	public static UInt128 operator ^(UInt128 left, UInt128 right) => new UInt128(left._u1 ^ right._u1, left._u0 ^ right._u0);
 
+	public static UInt128 operator +(UInt128 value) => value;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static UInt128 operator -(UInt128 value)
+	public static UInt128 operator -(UInt128 value)
 	{
 		ulong u0 = ~value._u0 + 1;
 		ulong u1 = ~value._u1;
@@ -266,10 +273,11 @@ public readonly unsafe struct UInt128 : IEquatable<UInt128>, IComparable<UInt128
 	public static UInt128 operator <<(UInt128 value, int bits)
 	{
 		const int wordBits = sizeof(ulong) * 8;
-		bits &= 0x7F;
-		ulong u0 = value._u0 << bits;
+		if (bits % 128 == 0)
+			return value;
 		ulong u1 = (value._u1 << bits) | (value._u0 >> (wordBits - bits));
-		return ((uint)bits / wordBits) switch
+		ulong u0 = value._u0 << bits;
+		return ((uint)bits / wordBits % 2) switch
 		{
 			0 => new UInt128(u1, u0),
 			_ => new UInt128(u0, 0)
@@ -279,7 +287,8 @@ public readonly unsafe struct UInt128 : IEquatable<UInt128>, IComparable<UInt128
 	public static UInt128 operator >>(UInt128 value, int bits)
 	{
 		const int wordBits = sizeof(ulong) * 8;
-		bits &= 0x7F;
+		if (bits % 128 == 0)
+			return value;
 		ulong u0 = (value._u0 >> bits) | (value._u1 << (wordBits - bits));
 		ulong u1 = value._u1 >> bits;
 		return ((uint)bits / wordBits) switch
@@ -294,22 +303,67 @@ public readonly unsafe struct UInt128 : IEquatable<UInt128>, IComparable<UInt128
 	internal static UInt128 ShiftInLeft(UInt128 value) => new UInt128((value._u1 << 1) | (value._u0 >> 63), (value._u0 << 1) + 1);
 	internal static UInt128 ShiftInRight(UInt128 value) => new UInt128((1UL << 63) + (value._u1 >> 1), (value._u1 << 63) | (value._u0 >> 1));
 
-	internal static int HighestBit(UInt128 value)
-    {
+	public static int Log2(UInt128 value)
+	{
 		if (IsZero(value))
 			return 0;
 		if (value._u1 != 0)
 			return BitOperations.Log2(value._u1) + 64;
 		return BitOperations.Log2(value._u0);
-    }
+	}
 
 	public static explicit operator UInt128(int value) => new UInt128((ulong)((long)value >> 63), (ulong)value);
 	public static implicit operator UInt128(uint value) => new UInt128(0, value);
 	public static explicit operator UInt128(long value) => new UInt128((ulong)(value >> 63), (ulong)value);
 	public static implicit operator UInt128(ulong value) => new UInt128(0, value);
 
+	public static explicit operator UInt128(float value)
+	{
+		if (value < 0)
+			return default;
+		const int MANTISSA_BITS = 23;
+		const int BIAS = 127;
+		const int MANTISSA_MASK = (1 << MANTISSA_BITS) - 1;
+
+		int bits = BitConverter.SingleToInt32Bits(value);
+		UInt128 mantissa = (UInt128)(uint)(bits & MANTISSA_MASK);
+		int exp = (bits >> MANTISSA_BITS) - BIAS;
+		if (exp < 0 || exp > BIAS)
+			return default;
+		UInt128 output = One << exp;
+		if (exp < MANTISSA_BITS)
+			mantissa >>= MANTISSA_BITS - exp;
+		else
+			mantissa <<= exp - MANTISSA_BITS;
+		return output | mantissa;
+	}
+
+	public static explicit operator UInt128(double value)
+	{
+		if (value < 0)
+			return default;
+		const int MANTISSA_BITS = 52;
+		const int BIAS = 1023;
+		const long MANTISSA_MASK = (1L << MANTISSA_BITS) - 1;
+
+		long bits = BitConverter.DoubleToInt64Bits(value);
+		UInt128 mantissa = (ulong)(bits & MANTISSA_MASK);
+		int exp = (int)(bits >> MANTISSA_BITS) - BIAS;
+		if (exp < 0 || exp > 127)
+			return default;
+		UInt128 output = One << exp;
+		if (exp < MANTISSA_BITS)
+			mantissa >>= MANTISSA_BITS - exp;
+		else
+			mantissa <<= exp - MANTISSA_BITS;
+		return output | mantissa;
+	}
+
 	public static explicit operator int(UInt128 value) => (int)value._u0;
 	public static explicit operator uint(UInt128 value) => (uint)value._u0;
 	public static explicit operator long(UInt128 value) => (long)value._u0;
 	public static explicit operator ulong(UInt128 value) => value._u0;
+
+	public static explicit operator float(UInt128 value) => (float)(value._u0 + 18446744073709551616d * value._u1);
+	public static explicit operator double(UInt128 value) => value._u0 + 18446744073709551616d * value._u1;
 }

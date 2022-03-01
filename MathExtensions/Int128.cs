@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -14,6 +15,9 @@ namespace MathExtensions;
 
 [StructLayout(LayoutKind.Sequential, Size = 16)]
 [DebuggerDisplay("{ToString()}")]
+#if PREVIEW_FEATURES
+[RequiresPreviewFeatures]
+#endif
 public readonly unsafe struct Int128 : IEquatable<Int128>, IComparable<Int128>
 {
 	public readonly ulong _u0;

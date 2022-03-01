@@ -3,6 +3,7 @@
 		<OutputType>Exe</OutputType>
 		<TargetFramework>net7.0</TargetFramework>
 		<LangVersion>latest</LangVersion>
+		<Configurations>Debug;Release;Debug-Preview_Features;Release-Preview_Features</Configurations>
 	</PropertyGroup>
 
 	<PropertyGroup>
@@ -22,4 +23,8 @@
 		<ProjectReference Include="..\MathExpressions\MathExpressions.csproj" />
 		<ProjectReference Include="..\MathExtensions\MathExtensions.csproj" />
 	</ItemGroup>
+
+	<PropertyGroup Condition="$(Configuration.Contains(-))">
+		<DefineConstants>$(DefineConstants);$([System.String]::Join(';', $(Configuration.ToUpper().Split('-'))))</DefineConstants>
+	</PropertyGroup>
 </Project>

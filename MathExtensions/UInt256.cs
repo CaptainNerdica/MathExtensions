@@ -7,10 +7,14 @@ using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.Arm;
 using System.Runtime.Intrinsics.X86;
+using System.Runtime.Versioning;
 using System.Text;
 
 namespace MathExtensions
 {
+#if PREVIEW_FEATURES
+	[RequiresPreviewFeatures]
+#endif
 	public unsafe readonly struct UInt256 : IEquatable<UInt256>, IComparable<UInt256>
 	{
 		internal const int Bits = 256;

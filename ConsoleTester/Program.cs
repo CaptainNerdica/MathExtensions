@@ -17,6 +17,10 @@ using System.Runtime.Intrinsics.X86;
 using System.Runtime.Versioning;
 using Complex = MathExtensions.Complex;
 
+#if PREVIEW_FEATURES
+[assembly: RequiresPreviewFeatures]
+#endif
+
 namespace ConsoleTester
 {
 	static class Program
@@ -27,12 +31,8 @@ namespace ConsoleTester
 			//UInt128L u = UInt128L.MaxValue;
 			//string s = u.ToString();
 
-			Int128 i0 = 2;
-			i0.ToString();
-			Int128 i1 = 1;
-
-			Int128 i2 = Int128.DivRem(i0, i1, out _);
-			Int128.DivRem(uint.MaxValue, 0x1_0000_0000_0000UL, out _);
+			UInt128 u0 = (UInt128)double.MaxValue;
+			UInt128 u1 = (UInt128)12.345;
 		}
 	}
 
@@ -42,7 +42,7 @@ namespace ConsoleTester
 	[RankColumn]
 	public unsafe class Benchmarks
 	{
-
+		
 		public IEnumerable<object[]> Data()
 		{
 			const int count = 1;

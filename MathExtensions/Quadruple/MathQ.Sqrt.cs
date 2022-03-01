@@ -23,7 +23,7 @@ namespace MathExtensions
 			UInt128 s = GetSignificand(x);
 			UInt256 iSqrt = ISqrt((UInt256)s << 112);
 			s = (UInt128)iSqrt;
-			int shift = UInt128.HighestBit(s) - 112;
+			int shift = UInt128.Log2(s) - 112;
 			newExp -= shift;
 			if (newExp <= -0x3FFF)
 				return Zero;

@@ -6,6 +6,7 @@ using System.Linq.Expressions;
 using System.Net.Http;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -29,6 +30,9 @@ namespace MathExtensions
 
 	public static class RandomExtensions
 	{
+#if PREVIEW_FEATURES
+		[RequiresPreviewFeatures]
+#endif
 		public static Quadruple NextQuadruple(this Random random)
 		{
 			Span<byte> b = stackalloc byte[14];

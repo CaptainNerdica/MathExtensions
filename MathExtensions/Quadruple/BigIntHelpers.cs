@@ -3,11 +3,15 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace MathExtensions
 {
+#if PREVIEW_FEATURES
+	[RequiresPreviewFeatures]
+#endif
 	internal static class BigIntHelpers
 	{
 		internal static readonly uint[] Int32Masks1Bit = new uint[32];

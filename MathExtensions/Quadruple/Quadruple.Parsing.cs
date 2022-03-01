@@ -4,12 +4,16 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
 using BigInteger = MathExtensions.Internal.BigInteger;
 
 namespace MathExtensions
 {
+#if PREVIEW_FEATURES
+		[RequiresPreviewFeatures]
+#endif
 	internal static unsafe class QuadrupleParsing
 	{
 		internal const int DefaultPrecisionExponentialFormat = 6;
@@ -238,6 +242,7 @@ namespace MathExtensions
 			return maxDigits;
 		}
 
+
 		internal static unsafe string? FormatQuadruple(ref ValueStringBuilder sb, Quadruple value, ReadOnlySpan<char> format, NumberFormatInfo info)
 		{
 			if (!Quadruple.IsFinite(value))
@@ -307,7 +312,7 @@ namespace MathExtensions
 			else
 			{
 				Debug.Assert(mantissa != 0);
-				mantissaHighBitIdx = (uint)UInt128.HighestBit(mantissa);
+				mantissaHighBitIdx = (uint)UInt128.Log2(mantissa);
 			}
 
 			int length = (int)Dragon4(mantissa, exponent, mantissaHighBitIdx, hasUnequalMargins, cutoffNumber, isSignificantDigits, number.Digits, out int decimalExponent);
