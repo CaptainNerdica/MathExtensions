@@ -1,6 +1,7 @@
 ﻿using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Diagnosers;
+using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
 using MathExtensions;
 using System;
@@ -15,44 +16,85 @@ using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using System.Runtime.Versioning;
-using Complex = MathExtensions.Complex;
-
-#if PREVIEW_FEATURES
-[assembly: RequiresPreviewFeatures]
-#endif
+using System.Security.Cryptography;
 
 namespace ConsoleTester
 {
 	static class Program
 	{
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>")]
 		public unsafe static void Main()
 		{
-			//UInt128L u = UInt128L.MaxValue;
-			//string s = u.ToString();
+			Quadruple q1 = double.NaN;
+			Quadruple q2 = float.NegativeInfinity;
+			Quadruple q3 = -0.0;
+			Quadruple q4 = 1.0f;
+			Quadruple q5 = 234.78;
+			Quadruple q6 = -float.Epsilon;
+			Quadruple q7 = Half.Tau;
 
-			UInt128 u0 = (UInt128)double.MaxValue;
-			UInt128 u1 = (UInt128)12.345;
+			Console.Read();
 		}
+
+		public static Int128 Add(Int128 x, Int128 y) => x + y;
 	}
 
 	[KeepBenchmarkFiles(false)]
-	//[HardwareCounters(HardwareCounter.TotalCycles, HardwareCounter.Timer)]
-	[DisassemblyDiagnoser(exportCombinedDisassemblyReport: true)]
+	[DisassemblyDiagnoser(exportCombinedDisassemblyReport: true, exportHtml: true)]
 	[RankColumn]
-	public unsafe class Benchmarks
+	[MaxIterationCount(30)]
+	[IterationCount(5)]
+	public class Benchmarks
 	{
-		
+		static readonly int _globalSeed = (int)DateTime.UtcNow.Ticks;
+		static unsafe readonly int _sizeQuad = sizeof(Quadruple);
+
+		[Benchmark(Baseline = true)]
+		[ArgumentsSource(nameof(Data))]
+		public bool Eq1(Quadruple left, Quadruple right)
+		{
+			if (Quadruple.IsNaN(left) || Quadruple.IsNaN(right))
+				return false;
+			if (Quadruple.IsZero(left))
+#pragma warning disable IDE0075 // Simplify conditional expression
+				return Quadruple.IsZero(right) ? true : false;
+#pragma warning restore IDE0075 // Simplify conditional expression
+
+			return (left._upper == right._upper && left._lower == right._lower) ? true : false;
+		}
+
+		[Benchmark]
+		[ArgumentsSource(nameof(Data))]
+		public bool Eq2(Quadruple left, Quadruple right)
+		{
+			if ((((left._upper >> 48) & 0x7FFF) == 0x7FFF && (left._upper << 16 | left._lower) != 0) ||
+				(((right._upper >> 48) & 0x7FFF) == 0x7FFF && (right._upper << 16 | right._lower) != 0))
+				return false;
+
+			if ((left._upper << 1 | left._lower) == 0)
+				return (right._upper << 1 | right._lower) == 0 ? true : false;
+
+			return left._upper == right._upper && left._lower == right._lower ? true : false;
+		}
+
 		public IEnumerable<object[]> Data()
 		{
-			const int count = 1;
-			Random r = new Random(3);
-			byte[] s = new byte[128];
-			for (int i = 0; i < count; i++)
+			Span<byte> b = stackalloc byte[2 * _sizeQuad];
+			Random r = new Random(_globalSeed);
+			List<object[]> data = new List<object[]>();
+
+			int byteIdx;
+			for (int i = 0; i < 1; i++)
 			{
-				r.NextBytes(s);
-				yield return new object[] { new Int128(s.AsSpan().Slice(0, 16)), new Int128(s.AsSpan().Slice(16, 16)) };
+				r.NextBytes(b);
+				byteIdx = 0;
+				data.Add(new object[] { MemoryMarshal.Read<Quadruple>(b[byteIdx..(byteIdx += _sizeQuad)]), MemoryMarshal.Read<Quadruple>(b[byteIdx..(byteIdx += _sizeQuad)]) });
 			}
+
+			data.Add(new object[] { Quadruple.One, Quadruple.NaN });
+			data.Add(new object[] { Quadruple.Zero, Quadruple.NegativeZero });
+			data.Add(new object[] { Quadruple.Pi, Quadruple.Pi });
+
+			return data;
 		}
 	}
 }

@@ -111,6 +111,7 @@ namespace MathExtensions
 				written++;
 				return true;
 			}
+
 			ReadOnlySpan<char> separator = NumberFormatInfo.GetInstance(provider).NumberGroupSeparator;
 			Unsafe.SkipInit(out charsWritten);
 			if (destination.Length < 1)
@@ -158,6 +159,7 @@ namespace MathExtensions
 				Vector256<double> a = Avx.HorizontalAdd(m, m);
 				return Sse2.SqrtScalar(Sse2.AddScalar(a.GetLower(), a.GetUpper())).ToScalar();
 			}
+
 			return Math.Sqrt(X * X + Y * Y + Z * Z + W * W);
 		}
 
@@ -189,6 +191,7 @@ namespace MathExtensions
 				Avx.Store((double*)&value, Avx.Xor(Vector256.Create(mask).AsDouble(), Avx.LoadVector256(&value.X)));
 				return value;
 			}
+
 			return new Vector4D(-value.X, -value.Y, -value.Z, -value.W);
 		}
 
@@ -200,6 +203,7 @@ namespace MathExtensions
 				Avx.Store((double*)&left, Avx.Add(Avx.LoadVector256(&left.X), Avx.LoadVector256(&right.X)));
 				return left;
 			}
+
 			return new Vector4D(left.X + right.X, left.Y + right.Y, left.Z + right.Z, left.W + right.W);
 		}
 
@@ -211,6 +215,7 @@ namespace MathExtensions
 				Avx.Store((double*)&left, Avx.Subtract(Avx.LoadVector256(&left.X), Avx.LoadVector256(&right.X)));
 				return left;
 			}
+
 			return new Vector4D(left.X - right.X, left.Y - right.Y, left.Z - right.Z, left.W - right.W);
 		}
 
@@ -222,6 +227,7 @@ namespace MathExtensions
 				Avx.Store((double*)&left, Avx.Multiply(Avx.LoadVector256(&left.X), Avx.LoadVector256(&right.X)));
 				return left;
 			}
+
 			return new Vector4D(left.X * right.X, left.Y * right.Y, left.Z * right.Z, left.W * right.W);
 		}
 

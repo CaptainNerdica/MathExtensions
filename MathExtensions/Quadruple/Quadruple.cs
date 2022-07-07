@@ -1,328 +1,424 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using System.Runtime.Versioning;
 using System.Text;
-using static MathExtensions.Extensions;
 
 namespace MathExtensions
 {
-    /// <summary>
-    /// An implementation of IEEE 754-2008 binary128 Quadruple precision floating point numbers.
-    /// </summary>
-    /// <remarks>
-    /// Uses Subnormal Is Zero for all calculations.
-    /// </remarks>
-    [StructLayout(LayoutKind.Explicit)]
-    public unsafe readonly partial struct Quadruple : IComparable, IComparable<Quadruple>, IEquatable<Quadruple>, IFormattable
-    {
-        [FieldOffset(0)]
-        internal readonly uint _b0;
-        [FieldOffset(4)]
-        internal readonly uint _b1;
-        [FieldOffset(8)]
-        internal readonly uint _b2;
-        [FieldOffset(12)]
-        internal readonly uint _b3;
+	/// <summary>
+	/// Represents a IEEE 754-2008 binary128 quadruple-precision floating-point number.
+	/// </summary>
+	[StructLayout(LayoutKind.Sequential)]
+	public unsafe readonly partial struct Quadruple
+		: 
+		  IComparable<Quadruple>,
+		  IEquatable<Quadruple>,
+		  IMinMaxValue<Quadruple>
+	{
+		internal const int Size = 16;
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "<Pending>")]
-        internal readonly uint* _b
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                fixed (void* p = &this)
-                {
-                    return (uint*)p;
-                }
-            }
-        }
+		internal const int Bias = 0x3FFF;
+		internal const int SpecialExp = 0x4000;
+		internal const ulong SignMaskUpper = 0x8000_0000_0000_0000;
 
-        internal readonly int Sign { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (int)(_b3 >> 31); }
-        internal readonly int Exp { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (int)((_b3 & 0x7FFF_0000U) >> 16); }
+		public readonly ulong _lower;   // bits 0...63
+		public readonly ulong _upper;   // bits 64...127
 
-        internal const int Bias = 16383;
-        internal const int SignificandBits = 112;
-        internal const int NormalMantissaBits = 113;
-        internal static readonly UInt128 FractionMask = new UInt128(0x0000_FFFF_FFFF_FFFF, 0xFFFF_FFFF_FFFF_FFFF);
+		/// <summary>Represents the largest possible value of a <see cref="Quadruple"/>.</summary>
+		/// <remarks><see cref="MaxValue"/> is approximately 1.1897314953572317650857593266280070162 × 10^4932.</remarks>
+		public static readonly Quadruple MaxValue = new Quadruple(0x7FFE_FFFF_FFFF_FFFF, 0xFFFF_FFFF_FFFF_FFFF);
+		/// <summary>Represents the smallest possible value of a <see cref="Quadruple"/>.</summary>
+		/// <remarks><see cref="MinValue"/> is approximately -1.1897314953572317650857593266280070162 × 10^4932.</remarks>
+		public static readonly Quadruple MinValue = new Quadruple(0xFFFE_FFFF_FFFF_FFFF, 0xFFFF_FFFF_FFFF_FFFF);
 
-        public static readonly Quadruple Epsilon = new Quadruple(0x0000_0000, 0x0000_0000, 0x0000_0000, 0x0000_0001);
+		/// <summary>Represents the value zero.</summary>
+		public static readonly Quadruple Zero = new Quadruple(0x0000_0000_0000_0000, 0x0000_0000_0000_0000);
+		/// <summary>Represents the value negative zero.</summary>
+		public static readonly Quadruple NegativeZero = new Quadruple(0x8000_0000_0000_0000, 0x0000_0000_0000_0000);
 
-        public static readonly Quadruple MaxValue = new Quadruple(0x7FFE_FFFF, 0xFFFF_FFFF, 0xFFFF_FFFF, 0xFFFF_FFFF);
-        public static readonly Quadruple MinValue = new Quadruple(0xFFFE_FFFF, 0xFFFF_FFFF, 0xFFFF_FFFF, 0xFFFF_FFFF);
+		/// <summary>Represents the value one.</summary>
+		public static readonly Quadruple One = new Quadruple(0x3FFF_0000_0000_0000, 0x0000_0000_0000_0000);
+		/// <summary>Represents the value negative one.</summary>
+		public static readonly Quadruple NegativeOne = new Quadruple(0xBFFF_0000_0000_0000, 0x0000_0000_0000_0000);
 
-        public static readonly Quadruple NaN = new Quadruple(0xFFFF_8000, 0x0000_0000, 0x0000_0000, 0x0000_0000);
-        public static readonly Quadruple NegativeInfinity = new Quadruple(0xFFFF_0000, 0x0000_0000, 0x0000_0000, 0x0000_0000);
-        public static readonly Quadruple PositiveInfinity = new Quadruple(0x7FFF_0000, 0x0000_0000, 0x0000_0000, 0x0000_0000);
+		/// <summary>Represents positive infintiy.</summary>
+		public static readonly Quadruple PositiveInfinity = new Quadruple(0x7FFF_0000_0000_0000, 0x0000_0000_0000_0000);
+		/// <summary>Represents negative infinity.</summary>
+		public static readonly Quadruple NegativeInfinity = new Quadruple(0xFFFF_0000_0000_0000, 0x0000_0000_0000_0000);
 
-        public static readonly Quadruple NegativeZero = new Quadruple(0x8000_0000, 0x0000_0000, 0x0000_0000, 0x0000_0000);
-        public static readonly Quadruple Zero = new Quadruple(0x0000_0000, 0x0000_0000, 0x0000_0000, 0x0000_0000);
+		/// <summary>Represents the smallest positive <see cref="Quadruple"/> value that is greater than zero.</summary>
+		/// <remarks>Epislon is approximately 6.4751751194380251109244389582276465525 × 10^-4966.</remarks>
+		public static readonly Quadruple Epsilon = new Quadruple(0x0000_0000_0000_0000, 0x0000_0000_0000_0001);
+		/// <summary>Represents a value that is not a number (NaN).</summary>
+		public static readonly Quadruple NaN = new Quadruple(0xFFFF_8000_0000_0000, 0x0000_0000_0000_0000);
 
-        public static readonly Quadruple One = new Quadruple(0x3FFF_0000, 0x0000_0000, 0x0000_0000, 0x0000_0000);
-        internal static readonly Quadruple MinusOne = new Quadruple(0xBFFF_0000, 0x0000_0000, 0x0000_0000, 0x0000_0000);
+		/// <summary>Represents the ratio of the circumference of a circle to its diameter, specified by the constant, π.</summary>
+		/// <remarks>Pi is approximately 3.14159265358979323846264338327950280.</remarks>
+		public static readonly Quadruple Pi = new Quadruple(0x4000_921F_B544_42D1, 0x8469_898C_C517_01B8);
+		/// <summary>Represents the number of radians in one turn, specified by the constant, τ.</summary>
+		/// <remarks>Tau is approximately 6.28318530717958647692528676655900559.</remarks>
+		public static readonly Quadruple Tau = new Quadruple(0x4001_921F_B544_42D1, 0x8469_898C_C517_01B8);
+		/// <summary>Represents the natural logarithmic base, specified by the constant, e.</summary>
+		/// <remarks>E is apporximately 2.71828182836969448633845487297936844.</remarks>
+		public static readonly Quadruple E = new Quadruple(0x4000_5BF0_A8B1_1457, 0x9535_5FB8_AC40_4E7A);
 
-        public static bool IsFinite(Quadruple q) => (q._b3 & 0x7FFF_0000) != 0x7FFF_0000;
-        public static bool IsInfinity(Quadruple q) => (q._b3 & 0x7FFF_FFFF) == 0x7FFF_0000 && q._b2 == 0 && q._b1 == 0 && q._b0 == 0;
-        public static bool IsNaN(Quadruple q) => (q._b3 & 0x7FFF_0000) == 0x7FFF_0000 && !((q._b3 & 0x0000_FFFF) == 0 && q._b2 == 0 && q._b1 == 0 && q._b0 == 0);
-        public static bool IsNegativeInfinity(Quadruple q) => q._b3 == 0xFFFF_0000 && q._b2 == 0 && q._b1 == 0 && q._b0 == 0;
-        public static bool IsNormal(Quadruple q) => 0x7FFF > q.Exp && q.Exp > 0;
-        public static bool IsPositive(Quadruple q) => (q._b3 & 0x8000_0000) == 0;
-        public static bool IsPositiveInfinity(Quadruple q) => q._b3 == 0x7FFF_0000 && q._b2 == 0 && q._b1 == 0 && q._b0 == 0;
-        public static bool IsSubnormal(Quadruple q) => q.Exp == 0;
-        internal static bool IsNegative(Quadruple q) => (q._b3 & 0x8000_0000) == 0x8000_0000;
-        internal static bool IsZero(Quadruple q) => (q._b3 & 0x7FFF_FFFF) == 0 && q._b2 == 0 && q._b1 == 0 && q._b0 == 0;
+		/// <summary>
+		/// Initializes a new instance of the <see cref="Quadruple"/> struct.
+		/// </summary>
+		/// <param name="upper">The upper 64-bits of the <see cref="Quadruple"/> value.</param>
+		/// <param name="lower">The lower 64-bits of the <see cref="Quadruple"/> value.</param>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public Quadruple(ulong upper, ulong lower)
+		{
+			_lower = lower;
+			_upper = upper;
+		}
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal Quadruple(uint u3, uint u2, uint u1, uint u0)
-        {
-            _b0 = u0;
-            _b1 = u1;
-            _b2 = u2;
-            _b3 = u3;
-        }
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal Quadruple(nuint sign, int exponent, ulong upperFrac, ulong lowerFrac)
+		{
+			const ulong UPPER_FRAC_MASK = 0x0000_FFFF_FFFF_FFFF;
+			const ulong EXP_MASK = 0x7FFF;
+			ulong biasedExp = (ulong)(exponent + Bias) & EXP_MASK;
 
-        public Quadruple(ReadOnlySpan<byte> span)
-        {
-            if (span.Length < sizeof(Quadruple))
-                throw new ArgumentException("Span too small", nameof(span));
-            this = MemoryMarshal.Read<Quadruple>(span);
-        }
+			_lower = lowerFrac;
+			_upper = ((sign & 1UL) << 63) | (biasedExp << 48) | (upperFrac & UPPER_FRAC_MASK);
+		}
 
-        public Quadruple(float value)
-        {
-            const int floatBias = 127;
-            const uint expMask = 0x7F80_0000;
-            const uint signMask = 0x8000_0000;
-            const uint infMask = 0x7F80_0000;
-            const uint fracMask = 0x007F_FFFF;
-            int bits = BitConverter.SingleToInt32Bits(value);
-            if (bits != 0)
-            {
-                uint exponent;
-                if ((bits & infMask) == infMask)
-                    exponent = 0x7FFF;
-                else
-                    exponent = (uint)((bits & expMask) >> 23) - floatBias + Bias;
-                uint frac = (uint)bits & fracMask;
+		/// <summary>
+		/// Determines whether the specified value is finite (zero, subnormal, or normal).
+		/// </summary>
+		/// <param name="q">A quadruple-precision floating-point number.</param>
+		/// <returns><see langword="true"/> if the value is finite (zero, subnormal, or normal); <see langword="false" /> otherwise.</returns>
+		public static bool IsFinite(Quadruple q) => (q._upper << 1) < 0xFFFE_0000_0000_0000;
 
-                _b3 = (uint)(bits & signMask) | (exponent << 16) | (frac >> 7);
-                _b2 = frac << 25;
-                _b1 = 0;
-                _b0 = 0;
-            }
-            else
-                this = default;
-        }
+		/// <summary>
+		/// Returns a value indicating whether the specified number evaluates to negative or positive infinity.
+		/// </summary>
+		/// <param name="q">A quadruple-precision floating-point number.</param>
+		/// <returns><see langword="true"/> if <paramref name="q"/> evaluates to <see cref="PositiveInfinity"/> or <see cref="NegativeInfinity"/>; otherwise, <see langword="false"/></returns>
+		public static bool IsInfinity(Quadruple q) => (q._upper << 1) == 0xFFFE_0000_0000_0000 && q._lower == 0;
 
-        public Quadruple(double value)
-        {
-            const int doubleBias = 1023;
-            const long expMask = 0x7FF0_0000_0000_0000;
-            const long signMask = unchecked((long)0x8000_0000_0000_0000);
-            const long infMask = 0x7FF0_0000_0000_0000;
-            const long fracMask = 0x000F_FFFF_FFFF_FFFF;
-            long bits = BitConverter.DoubleToInt64Bits(value);
-            if (bits != 0)
-            {
-                uint exponent;
-                if ((bits & infMask) == infMask)
-                    exponent = 0x7FFF;
-                else
-                    exponent = (uint)((bits & expMask) >> 52) - doubleBias + Bias;
-                long frac = bits & fracMask;
-                uint hi = ((uint*)&frac)[1];
-                uint lo = ((uint*)&frac)[0];
+		/// <summary>
+		/// Returns a value that indicates whether the specified value is not a number (<see cref="NaN"/>).
+		/// </summary>
+		/// <param name="q">A quadruple-precision floating-point number.</param>
+		/// <returns><see langword="true" /> <paramref name="q"/> evaluates to <see cref="NaN" />; otherwise, <see langword="false"/></returns>
+		public static bool IsNaN(Quadruple q) => (q._upper & 0x7FFF_0000_0000_0000) == 0x7FFF_0000_0000_0000 && (((q._upper << 16) | q._lower) != 0); // check exponent is 0x7FFF and significand is not zero.
 
-                _b3 = (uint)((bits & signMask) >> 32) | (exponent << 16) | (hi >> 4);
-                _b2 = (hi << 28) | (lo >> 4);
-                _b1 = lo << 28;
-                _b0 = 0;
-            }
-            else
-                this = default;
-        }
+		/// <summary>
+		/// Determines whether the specified value is negative.
+		/// </summary>
+		/// <param name="q">A quadruple-precision floating-point number.</param>
+		/// <returns><see langword="true" /> if the value is negative; <see langword="false" /> otherwise.</returns>
+		public static bool IsNegative(Quadruple q) => ((long)q._upper) < 0;
 
-        public Quadruple(int value)
-        {
-            Unsafe.SkipInit(out _b0);
-            Unsafe.SkipInit(out _b1);
-            Unsafe.SkipInit(out _b2);
-            Unsafe.SkipInit(out _b3);
-            if (value == 0)
-                return;
-            int sign = value < 0 ? 1 : 0;
-            if (sign == 1)
-                value = -value;
+		/// <summary>
+		/// Returns a value indicating whether the specified number evaluates to negative infinity.
+		/// </summary>
+		/// <param name="q">A quadruple-precision floating-point number</param>
+		/// <returns><see langword="true"/> if <paramref name="q"/> evaluates to <see cref="NegativeInfinity"/>; otherwise, <see langword="false" /></returns>
+		public static bool IsNegativeInfinity(Quadruple q) => q._upper == 0xFFFF_0000_0000_0000 && q._lower == 0;
 
-            int hbit = BigIntHelpers.GetHighestBit((uint)value);
-            int exp = hbit;
-            UInt128 u = (uint)value;
-            u <<= SignificandBits - hbit;
-            u &= FractionMask;
-            u |= (UInt128)((exp + Bias) | sign << 15) << 112;
-            fixed (void* b = &_b0)
-                Unsafe.CopyBlock(b, &u, (uint)sizeof(Quadruple));
-        }
+		/// <summary>
+		/// Determines whether the specified value is normal.
+		/// </summary>
+		/// <param name="q">A quadruple-precision floating-point number</param>
+		/// <returns><see langword="true"/> if the value is normal; otherwise, <see langword="false" /></returns>
+		public static bool IsNormal(Quadruple q)
+		{
+			ulong upper = q._upper << 1;
+			return upper >= 0x0002_0000_0000_0000 && upper < 0xFFFE_0000_0000_0000;
+		}
 
-        public Quadruple(uint value)
-        {
-            Unsafe.SkipInit(out _b0);
-            Unsafe.SkipInit(out _b1);
-            Unsafe.SkipInit(out _b2);
-            Unsafe.SkipInit(out _b3);
-            if (value == 0)
-                return;
-            int hbit = BigIntHelpers.GetHighestBit(value);
-            int exp = hbit;
-            UInt128 u = value;
-            u <<= SignificandBits - hbit;
-            u &= FractionMask;
-            u |= (UInt128)(exp + Bias) << 112;
-            fixed (void* b = &_b0)
-                Unsafe.CopyBlock(b, &u, (uint)sizeof(Quadruple));
-        }
+		/// <summary>
+		/// Returns a value indicating whether the specified number evaluates to positive infinity.
+		/// </summary>
+		/// <param name="q">A quadruple-precision floating-point number</param>
+		/// <returns><see langword="true"/> if <paramref name="q"/> evaluates to <see cref="PositiveInfinity"/>; otherwise, <see langword="false" /></returns>
+		public static bool IsPositiveInfinity(Quadruple q) => q._upper == 0x7FFF_0000_0000_0000 && q._lower == 0;
 
-        public Quadruple(long value)
-        {
-            Unsafe.SkipInit(out _b0);
-            Unsafe.SkipInit(out _b1);
-            Unsafe.SkipInit(out _b2);
-            Unsafe.SkipInit(out _b3);
-            if (value == 0)
-                return;
-            int sign = value < 0 ? 1 : 0;
-            if (sign == 1)
-                value = -value;
-            int hbit = BigIntHelpers.GetHighestBit((ulong)value);
-            int exp = hbit;
-            UInt128 u = (ulong)value;
-            u <<= SignificandBits - hbit;
-            u &= FractionMask;
-            u |= (UInt128)((exp + Bias) | sign << 15) << 112;
-            fixed (void* b = &_b0)
-                Unsafe.CopyBlock(b, &u, (uint)sizeof(Quadruple));
-        }
+		/// <summary>
+		/// Determines whether the specified value is subnormal.
+		/// </summary>
+		/// <param name="q">A quadruple-precision floating-point number</param>
+		/// <returns><see langword="true"/> if the value is subnormal; otherwise, <see langword="false" /></returns>
+		public static bool IsSubnormal(Quadruple q)
+		{
+			ulong upper = q._upper << 1;    // shift out sign bit
+			return !((upper | q._lower) == 0) && (upper >> 49) == 0; // check not a zero, and exponent is zero
+		}
 
-        public Quadruple(ulong value)
-        {
-            Unsafe.SkipInit(out _b0);
-            Unsafe.SkipInit(out _b1);
-            Unsafe.SkipInit(out _b2);
-            Unsafe.SkipInit(out _b3);
-            if (value == 0)
-                return;
-            int hbit = BigIntHelpers.GetHighestBit(value);
-            int exp = hbit;
-            UInt128 u = value;
-            u <<= SignificandBits - hbit;
-            u &= FractionMask;
-            u |= (UInt128)(exp + Bias) << 112;
-            fixed (void* b = &_b0)
-                Unsafe.CopyBlock(b, &u, (uint)sizeof(Quadruple));
-        }
+		/// <summary>
+		/// Determines whether the specified value is zero.
+		/// </summary>
+		/// <param name="q">A quadruple-precision floating-point number</param>
+		/// <returns><see langword="true"/> if the value is zero; otherwise, <see langword="false" /></returns>
+		public static bool IsZero(Quadruple q) => ((q._upper << 1) | q._lower) == 0;
 
-        public Quadruple(UInt128 value)
-        {
-            Unsafe.SkipInit(out _b0);
-            Unsafe.SkipInit(out _b1);
-            Unsafe.SkipInit(out _b2);
-            Unsafe.SkipInit(out _b3);
-            if (value == UInt128.Zero)
-                return;
-            int hbit = UInt128.Log2(value);
-            int exp = hbit;
-            UInt128 u = value;
-            u <<= SignificandBits - hbit;
-            u &= FractionMask;
-            u |= (UInt128)(exp + Bias) << 112;
-            fixed (void* b = &_b0)
-                Unsafe.CopyBlock(b, &u, (uint)sizeof(Quadruple));
-        }
+		[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+		private static bool AreZero(Quadruple left, Quadruple right)
+		{
+			return ((left._upper | right._upper) << 1) == 0 && (left._lower | right._lower) == 0;
+		}
 
-        public Quadruple(UInt256 value)
-        {
-            Unsafe.SkipInit(out _b0);
-            Unsafe.SkipInit(out _b1);
-            Unsafe.SkipInit(out _b2);
-            Unsafe.SkipInit(out _b3);
-            if (value == UInt256.Zero)
-                return;
-            int hbit = UInt256.GetHighestBit(value);
-            int exp = hbit;
-            UInt128 u = (UInt128)(value << (SignificandBits - hbit));
-            u &= FractionMask;
-            u |= (UInt128)(exp + Bias) << 112;
-            fixed (void* b = &_b0)
-                Unsafe.CopyBlock(b, &u, (uint)sizeof(Quadruple));
-        }
+		/// <summary>
+		/// Returns a value indicating whether this instance is equal to a specified object.
+		/// </summary>
+		/// <param name="obj">An object to compare with this instance.</param>
+		/// <returns><see langword="true"/> if <paramref name="obj"/> is an instance of <see cref="Quadruple"/> and equals the value of this instance; otherwise, <see langword="false"/></returns>
+		public override bool Equals([NotNullWhen(true)] object? obj) => obj is Quadruple q && Equals(q);
 
-        public override bool Equals(object? obj) => obj is Quadruple quad && Equals(quad);
-        public bool Equals(Quadruple other) => this == other;
-        public override int GetHashCode() => IsNaN(this) ? int.MinValue : HashCode.Combine(_b0, _b1, _b2, _b3);
+		/// <inheritdoc cref="ValueType.GetHashCode"/>
+		public override int GetHashCode()
+		{
+			ulong lower = _lower;
+			ulong upper = _upper;
 
-        public override string ToString() => FormatQuadruple(this, null, NumberFormatInfo.CurrentInfo);
-        public string ToString(string? format) => FormatQuadruple(this, format, NumberFormatInfo.CurrentInfo);
-        public string ToString(IFormatProvider? formatProvider) => FormatQuadruple(this, null, NumberFormatInfo.GetInstance(formatProvider));
-        public string ToString(string? format, IFormatProvider? formatProvider) => FormatQuadruple(this, format, NumberFormatInfo.GetInstance(formatProvider));
+			if (IsNaN(this) || IsZero(this))
+			{
+				upper &= 0x7FFF_0000_0000_0000;
+				lower = 0;
+			}
 
-        internal string ToStringHex()
-        {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < 4; ++i)
-                sb.AppendFormat("{0:X8} ", _b[3 - i]);
-            return sb.ToString().Trim();
-        }
+			return HashCode.Combine(lower, upper);
+		}
 
-        public int CompareTo(Quadruple value) => CompareTo(this, value);
+		/// <summary>
+		/// Returns a value indicating whether this instance and a speicied <see cref="Quadruple"/> object represent the same value.
+		/// </summary>
+		/// <param name="value">A <see cref="Quadruple"/> object to compare to this instance.</param>
+		/// <returns><see langword="true"/> if <paramref name="value"/> is equal to this instance; otherwise <see langword="false"/>.</returns>
+		public bool Equals(Quadruple value) => this == value || (IsNaN(value) && IsNaN(this));
 
-        public int CompareTo(object? value)
-        {
-            if (value is null)
-                return 1;
-            if (value is Quadruple q)
-                return CompareTo(this, q);
-            throw new ArgumentException($"Object must be of type {nameof(Quadruple)}");
-        }
+		public override string ToString() => $"{_upper:X16}{_lower:X16}";
 
-        public static bool operator ==(Quadruple left, Quadruple right) => (IsZero(left) && IsZero(right)) || (NeitherNaN(left, right) &&
-                                                                                                               left._b3 == right._b3 &&
-                                                                                                               left._b2 == right._b2 &&
-                                                                                                               left._b1 == right._b1 &&
-                                                                                                               left._b0 == right._b0);
-        public static bool operator !=(Quadruple left, Quadruple right) => !(left == right);
-        public static bool operator >(Quadruple left, Quadruple right) => NeitherNaN(left, right) && CompareToInternal(left, right) > 0;
-        public static bool operator <(Quadruple left, Quadruple right) => NeitherNaN(left, right) && CompareToInternal(left, right) < 0;
-        public static bool operator >=(Quadruple left, Quadruple right) => NeitherNaN(left, right) && CompareToInternal(left, right) >= 0;
-        public static bool operator <=(Quadruple left, Quadruple right) => NeitherNaN(left, right) && CompareToInternal(left, right) <= 0;
+		/// <summary>
+		/// Compares this object to another object, returning an integer that indicates the relationship.
+		/// </summary>
+		/// <returns>A value less than zero if this is less than <paramref name="obj"/>, zero if this is equal to <paramref name="obj"/>, or a value greater than zero if this is greater than <paramref name="obj"/>.</returns>
+		/// <exception cref="ArgumentException">Thrown when <paramref name="obj"/> is not of type <see cref="Quadruple"/>.</exception>
+		public int CompareTo(object? obj)
+		{
+			if (obj is not Quadruple q)
+				return (obj is null) ? 1 : throw new ArgumentException($"Object must be of type {nameof(Quadruple)}.");
 
-        public static Quadruple operator -(Quadruple quad) => IsNaN(quad) ? quad : new Quadruple(quad._b3 ^ 0x8000_0000, quad._b2, quad._b1, quad._b0);
-        public static Quadruple operator +(Quadruple left, Quadruple right) => Add(left, right);
-        public static Quadruple operator -(Quadruple left, Quadruple right) => Subtract(left, right);
-        public static Quadruple operator *(Quadruple left, Quadruple right) => Multiply(left, right);
-        public static Quadruple operator /(Quadruple left, Quadruple right) => Divide(left, right);
+			return CompareTo(q);
+		}
 
-        public static implicit operator Quadruple(float value) => new Quadruple(value);
-        public static implicit operator Quadruple(double value) => new Quadruple(value);
-        public static implicit operator Quadruple(int value) => new Quadruple(value);
-        public static implicit operator Quadruple(uint value) => new Quadruple(value);
-        public static implicit operator Quadruple(long value) => new Quadruple(value);
-        public static implicit operator Quadruple(ulong value) => new Quadruple(value);
-        public static implicit operator Quadruple(UInt128 value) => new Quadruple(value);
-        public static implicit operator Quadruple(UInt256 value) => new Quadruple(value);
+		/// <summary>
+		/// Compares this object to another object, returning an integer that indicates the relationship.
+		/// </summary>
+		/// <param name="other">The value to compare to.</param>
+		/// <returns>A value less than zero if this is less than <paramref name="other"/>, zero if this is equal to <paramref name="other"/>, or a value greater than zero if this is greater than <paramref name="other"/>.</returns>
+		public int CompareTo(Quadruple other)
+		{
+			if (this < other)
+				return -1;
 
-        public static explicit operator float(Quadruple q) => ConvertToSingle(q);
-        public static explicit operator double(Quadruple q) => ConvertToDouble(q);
-        public static explicit operator int(Quadruple q) => ConvertToInt32(q);
-        public static explicit operator uint(Quadruple q) => ConvertToUInt32(q);
-        public static explicit operator long(Quadruple q) => ConvertToInt64(q);
-        public static explicit operator ulong(Quadruple q) => ConvertToUInt64(q);
-        public static explicit operator UInt128(Quadruple q) => ConvertToUInt128(q);
-        public static explicit operator UInt256(Quadruple q) => ConvertToUInt256(q);
-    }
+			if (this > other)
+				return 1;
+
+			if (this == other)
+				return 0;
+
+			if (IsNaN(this))
+				return IsNaN(other) ? 0 : -1;
+
+			return 1;
+		}
+
+		/// <inheritdoc cref="IComparisonOperators{TSelf, TOther}.op_LessThan(TSelf, TOther)" />
+		public static bool operator <(Quadruple left, Quadruple right)
+		{
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			static bool UInt128LessThan(Quadruple left, Quadruple right) => (left._upper < right._upper) || ((left._upper == right._upper) && (left._lower < right._lower));
+
+			if (IsNaN(left) || IsNaN(right))
+				return false;   // NaNs are unordered.
+
+			bool leftIsNegative = IsNegative(left);
+
+			if (leftIsNegative != IsNegative(right))
+				return leftIsNegative && !AreZero(left, right);
+
+			return (left._upper != right._lower || left._lower != right._lower) && UInt128LessThan(left, right) ^ leftIsNegative;
+		}
+
+		/// <inheritdoc cref="IComparisonOperators{TSelf, TOther}.op_GreaterThan(TSelf, TOther)" />
+		public static bool operator >(Quadruple left, Quadruple right) => right < left;
+
+		/// <inheritdoc cref="IComparisonOperators{TSelf, TOther}.op_LessThanOrEqual(TSelf, TOther)" />
+		public static bool operator <=(Quadruple left, Quadruple right)
+		{
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			static bool UInt128LessThan(Quadruple left, Quadruple right) => (left._upper < right._upper) || ((left._upper == right._upper) && (left._lower < right._lower));
+
+			if (IsNaN(left) || IsNaN(right))
+				return false;   // NaNs are unordered.
+
+			bool leftIsNegative = IsNegative(left);
+
+			if (leftIsNegative != IsNegative(right))
+				return leftIsNegative || !AreZero(left, right);
+
+			return (left._upper == right._lower && left._lower == right._lower) || UInt128LessThan(left, right) ^ leftIsNegative;
+		}
+
+		/// <inheritdoc cref="IComparisonOperators{TSelf, TOther}.op_GreaterThanOrEqual(TSelf, TOther)" />
+		public static bool operator >=(Quadruple left, Quadruple right) => right <= left;
+
+		/// <summary>
+		/// Returns a value that indicates whether two specified <see cref="Quadruple"/> values are equal.
+		/// </summary>
+		/// <param name="left">The first value to compare.</param>
+		/// <param name="right">The second value to compare.</param>
+		/// <returns><see langword="true" /> if <paramref name="left"/> and <paramref name="right"/> are equal; otherwise, <see langword="false" />.</returns>
+		public static bool operator ==(Quadruple left, Quadruple right)
+		{
+#pragma warning disable IDE0075
+			if (IsNaN(left) || IsNaN(right))	// Numbers are unequal if either are NaN
+				return false;
+
+			return ((left._upper == right._upper && left._lower == right._lower) || AreZero(left, right)) ? true : false; // Ternary produces slightly more efficient assembly.
+#pragma warning restore IDE0075
+		}
+
+		/// <summary>
+		/// Returns a value that indicates whether two specified <see cref="Quadruple"/> values are not equal.
+		/// </summary>
+		/// <param name="left">The first value to compare.</param>
+		/// <param name="right">The second value to compare.</param>
+		/// <returns><see langword="true" /> if <paramref name="left"/> and <paramref name="right"/> are not equal; otherwise, <see langword="false" />.</returns>
+		public static bool operator !=(Quadruple left, Quadruple right) => !(left == right);
+
+		/// <inheritdoc cref="IUnaryNegationOperators{TSelf, TResult}.op_UnaryNegation(TSelf)"/>
+		public static Quadruple operator -(Quadruple value) => new Quadruple(value._upper ^ SignMaskUpper, value._lower);
+		/// <inheritdoc cref="IUnaryNegationOperators{TSelf, TResult}.op_CheckedUnaryNegation(TSelf)"/>
+		public static Quadruple operator checked -(Quadruple value) => unchecked(-value);
+
+		public static implicit operator Quadruple(Half value)
+		{
+			const int BIT_COUNT = 16;
+			const int EXPONENT_START = 10;
+			const int EXPONENT_BIAS = 15;
+			const int SPECIAL_EXP = EXPONENT_BIAS + 1;
+			const int SIGN_BIT = 15;
+			const uint FRACTION_MASK = 0x03FF;
+			const uint SIGN_MASK = 0x8000;
+
+			uint bits = BitConverter.HalfToUInt16Bits(value);
+			uint sign = bits >> SIGN_BIT;
+			int exp = (int)((bits & ~SIGN_MASK) >> EXPONENT_START) - EXPONENT_BIAS;
+			uint frac = bits & FRACTION_MASK;
+
+			if (exp == -EXPONENT_BIAS)
+			{
+				int lzc = BitOperations.LeadingZeroCount(frac) - 16;
+
+				if (lzc == BIT_COUNT)
+					return new Quadruple(sign, -Bias, 0, 0);
+
+				int shift = lzc - (BIT_COUNT - EXPONENT_START);
+
+				exp -= shift;
+				frac <<= shift + 1;
+				frac &= FRACTION_MASK;
+			}
+
+			if (exp == SPECIAL_EXP)
+				exp = SpecialExp;
+
+			return new Quadruple(sign, exp, (ulong)frac << (48 - EXPONENT_START), 0);
+		}
+
+		public static implicit operator Quadruple(float value)
+		{
+			const int BIT_COUNT = sizeof(float) * 8;
+			const int EXPONENT_START = 23;
+			const int EXPONENT_BIAS = 127;
+			const int SPECIAL_EXP = EXPONENT_BIAS + 1;
+			const int SIGN_BIT = 31;
+			const uint FRACTION_MASK = 0x007F_FFFF;
+			const uint SIGN_MASK = 0x8000_0000;
+
+			uint bits = BitConverter.SingleToUInt32Bits(value);
+			uint sign = bits >> SIGN_BIT;
+			int exp = (int)((bits & ~SIGN_MASK) >> EXPONENT_START) - EXPONENT_BIAS;
+			uint frac = bits & FRACTION_MASK;
+
+			if (exp == -EXPONENT_BIAS)
+			{
+				int lzc = BitOperations.LeadingZeroCount(frac);
+
+				if (lzc == BIT_COUNT)
+					return new Quadruple(sign, -Bias, 0, 0);
+
+				int shift = lzc - (BIT_COUNT - EXPONENT_START);
+
+				exp -= shift;
+				frac <<= shift + 1;
+				frac &= FRACTION_MASK;
+			}
+
+			if (exp == SPECIAL_EXP)
+				exp = SpecialExp;
+
+			return new Quadruple(sign, exp, (ulong)frac << (48 - EXPONENT_START), 0);
+		}
+
+		public static implicit operator Quadruple(double value)
+		{
+			const int BIT_COUNT = sizeof(double) * 8;
+			const int EXPONENT_START = 52;
+			const int EXPONENT_BIAS = 1023;
+			const int SPECIAL_EXP = EXPONENT_BIAS + 1;
+			const int SIGN_BIT = 63;
+			const ulong FRACTION_MASK = 0x000F_FFFF_FFFF_FFFF;
+			const ulong SIGN_MASK = 0x8000_0000_0000_0000;
+
+			ulong bits = BitConverter.DoubleToUInt64Bits(value);
+			ulong sign = bits >> SIGN_BIT;
+			int exp = (int)((bits & ~SIGN_MASK) >> EXPONENT_START) - EXPONENT_BIAS;
+			ulong frac = bits & FRACTION_MASK;
+
+			if (exp == -EXPONENT_BIAS)
+			{
+				int lzc = BitOperations.LeadingZeroCount(frac);
+
+				if (lzc == BIT_COUNT)
+					return new Quadruple((nuint)sign, -Bias, 0, 0);
+
+				int shift = lzc - (BIT_COUNT - EXPONENT_START);
+
+				exp -= shift;
+				frac <<= shift + 1;
+				frac &= FRACTION_MASK;
+			}
+
+			if (exp == SPECIAL_EXP)
+				exp = SpecialExp;
+
+			return new Quadruple((nuint)sign, exp, frac >> (EXPONENT_START - 48), frac << (BIT_COUNT - (EXPONENT_START - 48)));
+		}
+
+		//
+		// IMinMaxValue
+		//
+
+		/// <inheritdoc cref="IMinMaxValue{TSelf}.MaxValue" />
+		static Quadruple IMinMaxValue<Quadruple>.MaxValue => MaxValue;
+
+		/// <inheritdoc cref="IMinMaxValue{TSelf}.MinValue" />
+		static Quadruple IMinMaxValue<Quadruple>.MinValue => MinValue;
+	}
 }

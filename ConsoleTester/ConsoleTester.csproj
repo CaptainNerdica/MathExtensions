@@ -1,22 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-	<PropertyGroup>
-		<OutputType>Exe</OutputType>
-		<TargetFramework>net7.0</TargetFramework>
-		<LangVersion>latest</LangVersion>
-		<Configurations>Debug;Release;Debug-Preview_Features;Release-Preview_Features</Configurations>
-	</PropertyGroup>
 
 	<PropertyGroup>
-		<ServerGarbageCollection>true</ServerGarbageCollection>
+		<TargetFramework>net7.0</TargetFramework>
 		<Nullable>enable</Nullable>
+		<LangVersion>preview</LangVersion>
+		<Configurations>Debug;Release</Configurations>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-		<StartupObject></StartupObject>
 		<PlatformTarget>AnyCPU</PlatformTarget>
+		<OutputType>Exe</OutputType>
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="BenchmarkDotNet" Version="0.13.1" />
-	  <PackageReference Include="BenchmarkDotNet.Diagnostics.Windows" Version="0.13.1" />
+		<PackageReference Include="BenchmarkDotNet" Version="0.13.1" />
+		<PackageReference Include="BenchmarkDotNet.Diagnostics.Windows" Version="0.13.1" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -24,7 +20,7 @@
 		<ProjectReference Include="..\MathExtensions\MathExtensions.csproj" />
 	</ItemGroup>
 
-	<PropertyGroup Condition="$(Configuration.Contains(-))">
-		<DefineConstants>$(DefineConstants);$([System.String]::Join(';', $(Configuration.ToUpper().Split('-'))))</DefineConstants>
+	<PropertyGroup Condition="$(Configuration.StartsWith('Release'))">
+		<Optimize>True</Optimize>
 	</PropertyGroup>
 </Project>

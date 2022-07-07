@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "ConsoleTester": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "COMPlus_TieredCompilation": "0"
+      }
+    },
+    "WSL": {
+      "commandName": "WSL2",
+      "distributionName": ""
+    }
+  }
+}

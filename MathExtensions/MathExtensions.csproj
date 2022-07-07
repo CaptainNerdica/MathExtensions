@@ -1,10 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net7.0</TargetFrameworks>
+		<TargetFramework>net7.0</TargetFramework>
 		<Nullable>enable</Nullable>
-		<LangVersion>latest</LangVersion>
-		<Configurations>Debug;Release;Debug-Preview_Features;Release-Preview_Features</Configurations>
+		<LangVersion>preview</LangVersion>
+		<Configurations>Debug;Release</Configurations>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<PlatformTarget>AnyCPU</PlatformTarget>
 	</PropertyGroup>
@@ -13,15 +13,7 @@
 		<Optimize>True</Optimize>
 	</PropertyGroup>
 
-	<PropertyGroup Condition="$(Configuration.Contains(-))">
-		<DefineConstants>$(DefineConstants);$([System.String]::Join(';', $(Configuration.ToUpper().Split('-'))))</DefineConstants>
-	</PropertyGroup>
-
-	<PropertyGroup Condition="$(DefineConstants.Contains(PREVIEW_FEATURES))">
-		<LangVersion>preview</LangVersion>
-	</PropertyGroup>
-
-	<ItemGroup Condition="$(DefineConstants.Contains(PREVIEW_FEATURES))">
-		<PackageReference Include="System.Runtime.Experimental" Version="7.0.0-preview.1.22076.8" />
+	<ItemGroup>
+	  <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="7.0.0-preview.2.22152.2" />
 	</ItemGroup>
 </Project>
