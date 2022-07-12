@@ -24,13 +24,10 @@ namespace ConsoleTester
 	{
 		public unsafe static void Main()
 		{
-			Quadruple q1 = double.NaN;
-			Quadruple q2 = float.NegativeInfinity;
-			Quadruple q3 = -0.0;
-			Quadruple q4 = 1.0f;
-			Quadruple q5 = 234.78;
-			Quadruple q6 = -float.Epsilon;
-			Quadruple q7 = Half.Tau;
+			Quadruple q1 = Int128.MaxValue;
+			Quadruple q5 = Int128.One;
+			Quadruple q6 = Int128.MinValue;
+			Quadruple q7 = (1L << 63) + (1L << 62);
 
 			Console.Read();
 		}
