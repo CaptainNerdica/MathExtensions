@@ -8,23 +8,59 @@ using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.Arm;
+using System.Runtime.Intrinsics.X86;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace MathExtensions;
+[StructLayout(LayoutKind.Explicit, Size = Size)]
 public readonly struct UInt256
 	: IBinaryInteger<UInt256>,
 	  IMinMaxValue<UInt256>,
 	  IUnsignedNumber<UInt256>
 
 {
-	internal const int Size = 32;
+	internal const int Size = 4 * sizeof(ulong);
 
+	[FieldOffset(0)]
 	private readonly UInt128 _lower;
+	[FieldOffset(16)]
 	private readonly UInt128 _upper;
 
+	[FieldOffset(0)]
+	private readonly ulong _u0;
+	[FieldOffset(8)]
+	private readonly ulong _u1;
+	[FieldOffset(16)]
+	private readonly ulong _u2;
+	[FieldOffset(24)]
+	private readonly ulong _u3;
+
+	internal ulong U0 { get => _u0; private init => _u0 = value; }
+	internal ulong U1 { get => _u1; private init => _u1 = value; }
+	internal ulong U2 { get => _u2; private init => _u2 = value; }
+	internal ulong U3 { get => _u3; private init => _u3 = value; }
+
+	[StructLayout(LayoutKind.Explicit)]
+	internal struct MutableUInt256
+	{
+		[FieldOffset(0 * sizeof(ulong))]
+		internal ulong _u0;
+		[FieldOffset(1 * sizeof(ulong))]
+		internal ulong _u1;
+		[FieldOffset(2 * sizeof(ulong))]
+		internal ulong _u2;
+		[FieldOffset(3 * sizeof(ulong))]
+		internal ulong _u3;
+
+		[FieldOffset(0)]
+		internal UInt256 _value;
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public UInt256(ulong u3, ulong u2, ulong u1, ulong u0) : this(new UInt128(u3, u2), new UInt128(u1, u0)) { }
+	public UInt256(ulong u3, ulong u2, ulong u1, ulong u0) => (_u3, _u2, _u1, _u0) = (u3, u2, u1, u0);
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public UInt256(UInt128 upper, UInt128 lower)
@@ -54,17 +90,11 @@ public readonly struct UInt256
 	public int CompareTo(UInt256 value)
 	{
 		if (this < value)
-		{
 			return -1;
-		}
 		else if (this > value)
-		{
 			return 1;
-		}
 		else
-		{
 			return 0;
-		}
 	}
 
 	/// <inheritdoc cref="ValueType.Equals(object?)"/>
@@ -77,13 +107,20 @@ public readonly struct UInt256
 	public bool Equals(UInt256 other) => this == other;
 
 	/// <inheritdoc cref="object.ToString()"/>
-	public override string ToString() => $"{_upper:X32}{_lower:X32}";
+	public override string ToString() => ToString(null, null);
+	
+	/// <summary></summary>
+	/// <param name="format"></param>
+	/// <returns></returns>
+	public string ToString([StringSyntax(StringSyntaxAttribute.NumericFormat)] string? format) => ToString(format, null);
 
-	public string ToString([StringSyntax(StringSyntaxAttribute.NumericFormat)] string? format) => throw new NotImplementedException();
+	/// <inheritdoc cref="IFormattable.ToString(string?, IFormatProvider?)" />
+	public string ToString([StringSyntax(StringSyntaxAttribute.NumericFormat)] string? format, IFormatProvider? provider) => 
+		Number.FormatUInt256(this, format, provider);
 
-	public string ToString([StringSyntax(StringSyntaxAttribute.NumericFormat)] string? format, IFormatProvider? provider) => throw new NotImplementedException();
-
-	public bool TryFormat(Span<char> destination, out int charsWritten, [StringSyntax(StringSyntaxAttribute.NumericFormat)] ReadOnlySpan<char> format = default, IFormatProvider? provider = null) => throw new NotImplementedException();
+	/// <inheritdoc cref="ISpanFormattable.TryFormat(Span{char}, out int, ReadOnlySpan{char}, IFormatProvider?)"/>
+	public bool TryFormat(Span<char> destination, out int charsWritten, [StringSyntax(StringSyntaxAttribute.NumericFormat)] ReadOnlySpan<char> format = default, IFormatProvider? provider = null) => 
+		Number.TryFormatUInt256(this, format, provider, destination, out charsWritten);
 
 	public static UInt256 Parse(string s)
 	{
@@ -157,32 +194,32 @@ public readonly struct UInt256
 	/// <summary>Explicitly converts a 256-bit unsigned integer to a <see cref="byte" /> value.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a <see cref="byte" />.</returns>
-	public static explicit operator byte(UInt256 value) => (byte)value._lower;
+	public static explicit operator byte(UInt256 value) => (byte)value._u0;
 
 	/// <summary>Explicitly converts a 256-bit unsigned integer to a <see cref="char" /> value.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a <see cref="char" />.</returns>
-	public static explicit operator char(UInt256 value) => (char)value._lower;
+	public static explicit operator char(UInt256 value) => (char)value._u0;
 
 	/// <summary>Explicitly converts a 256-bit unsigned integer to a <see cref="short" /> value.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a <see cref="short" />.</returns>
-	public static explicit operator short(UInt256 value) => (short)value._lower;
+	public static explicit operator short(UInt256 value) => (short)value._u0;
 
 	/// <summary>Explicitly converts a 256-bit unsigned integer to a <see cref="int" /> value.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a <see cref="int" />.</returns>
-	public static explicit operator int(UInt256 value) => (int)value._lower;
+	public static explicit operator int(UInt256 value) => (int)value._u0;
 
 	/// <summary>Explicitly converts a 256-bit unsigned integer to a <see cref="long" /> value.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a <see cref="long" />.</returns>
-	public static explicit operator long(UInt256 value) => (long)value._lower;
+	public static explicit operator long(UInt256 value) => (long)value._u0;
 
 	/// <summary>Explicitly converts a 256-bit unsigned integer to a <see cref="IntPtr" /> value.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a <see cref="IntPtr" />.</returns>
-	public static explicit operator nint(UInt256 value) => (nint)value._lower;
+	public static explicit operator nint(UInt256 value) => (nint)value._u0;
 
 	/// <summary>Explicitly converts a 256-bit unsigned integer to a <see cref="Int128" /> value.</summary>
 	/// <param name="value">The value to convert.</param>
@@ -192,32 +229,32 @@ public readonly struct UInt256
 	/// <summary>Explicitly converts a 256-bit unsigned integer to a <see cref="sbyte" /> value.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a <see cref="sbyte" />.</returns>
-	public static explicit operator sbyte(UInt256 value) => (sbyte)value._lower;
+	public static explicit operator sbyte(UInt256 value) => (sbyte)value._u0;
 
 	/// <summary>Explicitly converts a 256-bit unsigned integer to a <see cref="ushort" /> value.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a <see cref="ushort" />.</returns>
-	public static explicit operator ushort(UInt256 value) => (ushort)value._lower;
+	public static explicit operator ushort(UInt256 value) => (ushort)value._u0;
 
 	/// <summary>Explicitly converts a 256-bit unsigned integer to a <see cref="uint" /> value.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a <see cref="uint" />.</returns>
-	public static explicit operator uint(UInt256 value) => (uint)value._lower;
+	public static explicit operator uint(UInt256 value) => (uint)value._u0;
 
 	/// <summary>Explicitly converts a 256-bit unsigned integer to a <see cref="ulong" /> value.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a <see cref="ulong" />.</returns>
-	public static explicit operator ulong(UInt256 value) => (ulong)value._lower;
+	public static explicit operator ulong(UInt256 value) => value._u0;
 
 	/// <summary>Explicitly converts a 256-bit unsigned integer to a <see cref="UIntPtr" /> value.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a <see cref="UIntPtr" />.</returns>
-	public static explicit operator nuint(UInt256 value) => (nuint)value._lower;
+	public static explicit operator nuint(UInt256 value) => (nuint)value._u0;
 
 	/// <summary>Explicitly converts a 256-bit unsigned integer to a <see cref="UInt128" /> value.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a <see cref="UInt128" />.</returns>
-	public static explicit operator UInt128(UInt256 value) => value._lower;
+	public static explicit operator UInt128(UInt256 value) => new UInt128(value._u1, value._u0);
 
 	//
 	// Explicit Conversions To UInt256
@@ -285,60 +322,142 @@ public readonly struct UInt256
 	/// <summary>Implicitly converts a <see cref="byte" /> value to a 256-bit unsigned integer.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a 256-bit unsigned integer.</returns>
-	public static implicit operator UInt256(byte value) => new UInt256(0, 0, 0, value);
+	public static unsafe implicit operator UInt256(byte value) => new UInt256(0, 0, 0, value);
 
 	/// <summary>Implicitly converts a <see cref="char" /> value to a 256-bit unsigned integer.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a 256-bit unsigned integer.</returns>
-	public static implicit operator UInt256(char value) => new UInt256(0, value);
+	public static implicit operator UInt256(char value) => new UInt256(0, 0, 0, value);
 
 	/// <summary>Implicitly converts a <see cref="ushort" /> value to a 256-bit unsigned integer.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a 256-bit unsigned integer.</returns>
-	public static implicit operator UInt256(ushort value) => new UInt256(0, value);
+	public static implicit operator UInt256(ushort value) => new UInt256(0, 0, 0, value);
 
 	/// <summary>Implicitly converts a <see cref="uint" /> value to a 256-bit unsigned integer.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a 256-bit unsigned integer.</returns>
-	public static implicit operator UInt256(uint value) => new UInt256(0, value);
+	public static implicit operator UInt256(uint value) => new UInt256(0, 0, 0, value);
 
 	/// <summary>Implicitly converts a <see cref="ulong" /> value to a 256-bit unsigned integer.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a 256-bit unsigned integer.</returns>
-	public static implicit operator UInt256(ulong value) => new UInt256(0, value);
+	public static implicit operator UInt256(ulong value) => new UInt256(0, 0, 0, value);
 
 	/// <summary>Implicitly converts a <see cref="UIntPtr" /> value to a 256-bit unsigned integer.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a 256-bit unsigned integer.</returns>
-	public static implicit operator UInt256(nuint value) => new UInt256(0, value);
+	public static implicit operator UInt256(nuint value) => new UInt256(0, 0, 0, value);
 
-	/// <summary>Implicitly converts a <see cref="UIntPtr" /> value to a 256-bit unsigned integer.</summary>
+	/// <summary>Implicitly converts a <see cref="UInt128" /> value to a 256-bit unsigned integer.</summary>
 	/// <param name="value">The value to convert.</param>
 	/// <returns><paramref name="value" /> converted to a 256-bit unsigned integer.</returns>
-	public static implicit operator UInt256(UInt128 value) => new UInt256(0, value);
+	public static unsafe implicit operator UInt256(UInt128 value)
+	{
+		UInt256 o = default;
+		if (BitConverter.IsLittleEndian)
+			((UInt128*)&o)[0] = value;
+		else
+			((UInt128*)&o)[1] = value;
+		return o;
+	}
 
 	//
 	// IAdditionOperators
 	//
 
 	/// <inheritdoc cref="IAdditionOperators{TSelf, TOther, TResult}.op_Addition(TSelf, TOther)" />
-	public static UInt256 operator +(UInt256 left, UInt256 right)
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	[SkipLocalsInit]
+	public static unsafe UInt256 operator +(UInt256 left, UInt256 right)
 	{
-		UInt128 lower = left._lower + right._lower;
-		UInt128 carry = (lower < left._lower) ? 1UL : 0UL;
+		Unsafe.SkipInit(out MutableUInt256 mut);
 
-		UInt128 upper = left._upper + right._upper + carry;
-		return new UInt256(upper, lower);
+		if (Vector256.IsHardwareAccelerated)
+		{
+			Vector256<ulong> l = Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left));
+			Vector256<ulong> r = Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right));
+
+			Vector256<ulong> o = l + r;
+			o.Store((ulong*)&mut);
+		}
+		else if (Vector128.IsHardwareAccelerated)
+		{
+			Vector128<ulong> ll = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 0);
+			Vector128<ulong> lu = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 2);
+
+			Vector128<ulong> rl = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 0);
+			Vector128<ulong> ru = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 2);
+
+			Vector128<ulong> ol = ll + rl;
+			Vector128<ulong> ou = lu + ru;
+
+			ol.Store((ulong*)&mut);
+			ou.Store((ulong*)&mut + 2);
+		}
+		else
+		{
+			mut._u0 = left._u0 + right._u0;
+			mut._u1 = left._u1 + right._u1;
+			mut._u2 = left._u2 + right._u2;
+			mut._u3 = left._u3 + right._u3;
+		}
+
+		if (mut._u0 < right._u0)
+			mut._u1++;
+		if (mut._u1 < right._u1)
+			mut._u2++;
+		if (mut._u2 < right._u2)
+			mut._u3++;
+
+		return mut._value;
 	}
 
-	/// <inheritdoc cref="IAdditionOperators{TSelf, TOther, TResult}.op_CheckedAddition(TSelf, TOther)" />
-	public static UInt256 operator checked +(UInt256 left, UInt256 right)
-	{
-		UInt128 lower = left._lower + right._lower;
-		UInt128 carry = (lower < left._lower) ? 1UL : 0UL;
+	public static UInt256 Add(UInt256 left, UInt256 right) => checked(left + right);
 
-		UInt128 upper = checked(left._upper + right._upper + carry);
-		return new UInt256(upper, lower);
+	/// <inheritdoc cref="IAdditionOperators{TSelf, TOther, TResult}.op_CheckedAddition(TSelf, TOther)" />
+	public static unsafe UInt256 operator checked +(UInt256 left, UInt256 right)
+	{
+		Unsafe.SkipInit(out MutableUInt256 mut);
+
+		if (Vector256.IsHardwareAccelerated)
+		{
+			Vector256<ulong> l = Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left));
+			Vector256<ulong> r = Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right));
+
+			Vector256<ulong> o = l + r;
+			o.Store((ulong*)&mut);
+		}
+		else if (Vector128.IsHardwareAccelerated)
+		{
+			Vector128<ulong> ll = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 0);
+			Vector128<ulong> lu = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 2);
+
+			Vector128<ulong> rl = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 0);
+			Vector128<ulong> ru = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 2);
+
+			Vector128<ulong> ol = ll + rl;
+			Vector128<ulong> ou = lu + ru;
+
+			ol.Store((ulong*)&mut);
+			ou.Store((ulong*)&mut + 2);
+		}
+		else
+		{
+			mut._u0 = left._u0 + right._u0;
+			mut._u1 = left._u1 + right._u1;
+			mut._u2 = left._u2 + right._u2;
+			mut._u3 = left._u3 + right._u3;
+		}
+
+		if (mut._u0 < right._u0)
+			mut._u1++;
+		if (mut._u1 < right._u1)
+			mut._u2++;
+		if (mut._u2 < right._u2)
+			checked { mut._u3++; }
+
+		return mut._value;
 	}
 
 	//
@@ -353,23 +472,55 @@ public readonly struct UInt256
 	//
 
 	/// <inheritdoc cref="IBinaryInteger{TSelf}.DivRem(TSelf, TSelf)" />
+	[MethodImpl(MethodImplOptions.NoInlining)]
+	[SkipLocalsInit]
 	public static (UInt256 Quotient, UInt256 Remainder) DivRem(UInt256 left, UInt256 right)
 	{
 		UInt256 quotient = left / right;
 		return (quotient, left - (quotient * right));
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static int Lzcnt(UInt256 value)
+	{
+		return value switch
+		{
+			{ U3: not 0 } => 0 * 8 * sizeof(ulong) + BitOperations.LeadingZeroCount(value._u3),
+			{ U2: not 0 } => 1 * 8 * sizeof(ulong) + BitOperations.LeadingZeroCount(value._u2),
+			{ U1: not 0 } => 2 * 8 * sizeof(ulong) + BitOperations.LeadingZeroCount(value._u1),
+			_ => 3 * 8 * sizeof(ulong) + BitOperations.LeadingZeroCount(value._u0),
+		};
+	}
+
 	/// <inheritdoc cref="IBinaryInteger{TSelf}.LeadingZeroCount(TSelf)" />
 	public static UInt256 LeadingZeroCount(UInt256 value)
 	{
-		if (value._upper == 0UL)
-			return 128 + UInt128.LeadingZeroCount(value._lower);
+		MutableUInt256 mut = default;
 
-		return UInt128.LeadingZeroCount(value._upper);
+		mut._u0 = (uint)(value switch       // Manual inlining of Lzcnt to avoid additional copies
+		{
+			{ U3: not 0 } => 0 * 8 * sizeof(ulong) + BitOperations.LeadingZeroCount(value._u3),
+			{ U2: not 0 } => 1 * 8 * sizeof(ulong) + BitOperations.LeadingZeroCount(value._u2),
+			{ U1: not 0 } => 2 * 8 * sizeof(ulong) + BitOperations.LeadingZeroCount(value._u1),
+			_ => 3 * 8 * sizeof(ulong) + BitOperations.LeadingZeroCount(value._u0),
+		});
+
+		return mut._value;
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static int Popcnt(UInt256 value) => BitOperations.PopCount(value._u3) + BitOperations.PopCount(value._u2) + BitOperations.PopCount(value._u1) + BitOperations.PopCount(value._u0);
+
 	/// <inheritdoc cref="IBinaryInteger{TSelf}.PopCount(TSelf)" />
-	public static UInt256 PopCount(UInt256 value) => UInt128.PopCount(value._lower) + UInt128.PopCount(value._upper);
+	public static UInt256 PopCount(UInt256 value)
+	{
+		MutableUInt256 mut = default;
+
+		int v = BitOperations.PopCount(value._u3) + BitOperations.PopCount(value._u2) + BitOperations.PopCount(value._u1) + BitOperations.PopCount(value._u0);
+		mut._u0 = (uint)v;
+
+		return mut._value;
+	}
 
 	/// <inheritdoc cref="IBinaryInteger{TSelf}.RotateLeft(TSelf, int)" />
 	public static UInt256 RotateLeft(UInt256 value, int rotateAmount) => (value << rotateAmount) | (value >>> (256 - rotateAmount));
@@ -377,102 +528,134 @@ public readonly struct UInt256
 	/// <inheritdoc cref="IBinaryInteger{TSelf}.RotateRight(TSelf, int)" />
 	public static UInt256 RotateRight(UInt256 value, int rotateAmount) => (value >>> rotateAmount) | (value << (256 - rotateAmount));
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static int Tzcnt(UInt256 value)
+	{
+		return value switch
+		{
+			{ U0: not 0 } => 0 * 8 * sizeof(ulong) + BitOperations.TrailingZeroCount(value._u0),
+			{ U1: not 0 } => 1 * 8 * sizeof(ulong) + BitOperations.TrailingZeroCount(value._u1),
+			{ U2: not 0 } => 2 * 8 * sizeof(ulong) + BitOperations.TrailingZeroCount(value._u2),
+			_ => 3 * 8 * sizeof(ulong) + BitOperations.TrailingZeroCount(value._u3),
+		};
+	}
+
 	/// <inheritdoc cref="IBinaryInteger{TSelf}.TrailingZeroCount(TSelf)" />
 	public static UInt256 TrailingZeroCount(UInt256 value)
 	{
-		if (value._lower == Zero)
-			return 128 + UInt128.TrailingZeroCount(value._upper);
+		MutableUInt256 mut = default;
 
-		return UInt128.TrailingZeroCount(value._lower);
+		mut._u0 = (uint)(value switch    // Manual inlining of Tzcnt to avoid additional copies
+		{
+			{ U0: not 0 } => 0 * 8 * sizeof(ulong) + BitOperations.TrailingZeroCount(value._u0),
+			{ U1: not 0 } => 1 * 8 * sizeof(ulong) + BitOperations.TrailingZeroCount(value._u1),
+			{ U2: not 0 } => 2 * 8 * sizeof(ulong) + BitOperations.TrailingZeroCount(value._u2),
+			_ => 3 * 8 * sizeof(ulong) + BitOperations.TrailingZeroCount(value._u3),
+		});
+
+		return mut._value;
+	}
+
+	/// <inheritdoc cref="IBinaryInteger{TSelf}.TryReadBigEndian(ReadOnlySpan{byte}, bool, out TSelf)"/>
+	static bool IBinaryInteger<UInt256>.TryReadBigEndian(ReadOnlySpan<byte> source, bool isUnsigned, out UInt256 value)
+	{
+		if (source.Length < Size)
+		{
+			value = default;
+			return false;
+		}
+
+		Unsafe.SkipInit(out value);
+
+		ref MutableUInt256 mut = ref Unsafe.As<UInt256, MutableUInt256>(ref value);
+		ref byte b = ref Unsafe.AsRef(in source[0]);
+
+		mut._u0 = BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 3 * sizeof(ulong)))) : Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 3 * sizeof(ulong)));
+		mut._u1 = BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 2 * sizeof(ulong)))) : Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 2 * sizeof(ulong)));
+		mut._u2 = BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 1 * sizeof(ulong)))) : Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 1 * sizeof(ulong)));
+		mut._u3 = BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 0 * sizeof(ulong)))) : Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 0 * sizeof(ulong)));
+
+		return true;
+	}
+
+	/// <inheritdoc cref="IBinaryInteger{TSelf}.TryReadLittleEndian(ReadOnlySpan{byte}, bool, out TSelf)"/>
+	static bool IBinaryInteger<UInt256>.TryReadLittleEndian(ReadOnlySpan<byte> source, bool isUnsigned, out UInt256 value)
+	{
+		if (source.Length < Size)
+		{
+			value = default;
+			return false;
+		}
+
+		Unsafe.SkipInit(out value);
+
+		ref MutableUInt256 mut = ref Unsafe.As<UInt256, MutableUInt256>(ref value);
+		ref byte b = ref Unsafe.AsRef(in source[0]);
+
+		mut._u0 = BitConverter.IsLittleEndian ? Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 0 * sizeof(ulong))) : BinaryPrimitives.ReverseEndianness(Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 0 * sizeof(ulong))));
+		mut._u1 = BitConverter.IsLittleEndian ? Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 1 * sizeof(ulong))) : BinaryPrimitives.ReverseEndianness(Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 1 * sizeof(ulong))));
+		mut._u2 = BitConverter.IsLittleEndian ? Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 2 * sizeof(ulong))) : BinaryPrimitives.ReverseEndianness(Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 2 * sizeof(ulong))));
+		mut._u3 = BitConverter.IsLittleEndian ? Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 3 * sizeof(ulong))) : BinaryPrimitives.ReverseEndianness(Unsafe.ReadUnaligned<ulong>(ref Unsafe.Add(ref b, 3 * sizeof(ulong))));
+
+		return true;
 	}
 
 	/// <inheritdoc cref="IBinaryInteger{TSelf}.GetShortestBitLength()" />
 	int IBinaryInteger<UInt256>.GetShortestBitLength()
 	{
-		UInt256 value = this;
-		return (Size * 8) - (int)LeadingZeroCount(value);
+		return (Size * 8) - Lzcnt(this);
 	}
 
 	/// <inheritdoc cref="IBinaryInteger{TSelf}.GetByteCount()" />
 	int IBinaryInteger<UInt256>.GetByteCount() => Size;
 
 	/// <inheritdoc cref="IBinaryInteger{TSelf}.TryWriteBigEndian(Span{byte}, out int)" />
-	bool IBinaryInteger<UInt256>.TryWriteBigEndian(Span<byte> destination, out int bytesWritten)
+	unsafe bool IBinaryInteger<UInt256>.TryWriteBigEndian(Span<byte> destination, out int bytesWritten)
 	{
-		if (destination.Length >= Size)
-		{
-			IBinaryInteger<UInt128> lower, upper;
-			if (BitConverter.IsLittleEndian)
-			{
-				lower = _lower;
-				upper = _upper;
-			}
-			else
-			{
-				lower = _upper;
-				upper = _lower;
-			}
-
-			if (!upper.TryWriteBigEndian(destination, out int written))
-			{
-				bytesWritten = written;
-				return false;
-			}
-
-			bytesWritten = written;
-			if (!lower.TryWriteBigEndian(destination[written..], out written))
-			{
-				bytesWritten += written;
-				return false;
-			}
-
-			bytesWritten += written;
-			return true;
-		}
-		else
+		if (destination.Length < Size)
 		{
 			bytesWritten = 0;
 			return false;
+		}
+		else
+		{
+			ulong u0 = BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(_u0) : _u0;
+			ulong u1 = BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(_u1) : _u1;
+			ulong u2 = BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(_u2) : _u2;
+			ulong u3 = BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness(_u3) : _u3;
+
+			Unsafe.WriteUnaligned(ref destination[0 * sizeof(ulong)], u3);
+			Unsafe.WriteUnaligned(ref destination[1 * sizeof(ulong)], u2);
+			Unsafe.WriteUnaligned(ref destination[2 * sizeof(ulong)], u1);
+			Unsafe.WriteUnaligned(ref destination[3 * sizeof(ulong)], u0);
+
+			bytesWritten = Size;
+			return true;
 		}
 	}
 
 	/// <inheritdoc cref="IBinaryInteger{TSelf}.TryWriteLittleEndian(Span{byte}, out int)"/>
 	bool IBinaryInteger<UInt256>.TryWriteLittleEndian(Span<byte> destination, out int bytesWritten)
 	{
-		if (destination.Length >= Size)
-		{
-			IBinaryInteger<UInt128> lower, upper;
-			if (BitConverter.IsLittleEndian)
-			{
-				lower = _lower;
-				upper = _upper;
-			}
-			else
-			{
-				lower = _upper;
-				upper = _lower;
-			}
-
-			if (!lower.TryWriteLittleEndian(destination, out int written))
-			{
-				bytesWritten = written;
-				return false;
-			}
-
-			bytesWritten = written;
-			if (!upper.TryWriteLittleEndian(destination[written..], out written))
-			{
-				bytesWritten += written;
-				return false;
-			}
-
-			bytesWritten += written;
-			return true;
-		}
-		else
+		if (destination.Length < Size)
 		{
 			bytesWritten = 0;
 			return false;
+		}
+		else
+		{
+			ulong u0 = BitConverter.IsLittleEndian ? _u0 : BinaryPrimitives.ReverseEndianness(_u0);
+			ulong u1 = BitConverter.IsLittleEndian ? _u1 : BinaryPrimitives.ReverseEndianness(_u1);
+			ulong u2 = BitConverter.IsLittleEndian ? _u2 : BinaryPrimitives.ReverseEndianness(_u2);
+			ulong u3 = BitConverter.IsLittleEndian ? _u3 : BinaryPrimitives.ReverseEndianness(_u3);
+
+			Unsafe.WriteUnaligned(ref destination[0 * sizeof(ulong)], u0);
+			Unsafe.WriteUnaligned(ref destination[1 * sizeof(ulong)], u1);
+			Unsafe.WriteUnaligned(ref destination[2 * sizeof(ulong)], u2);
+			Unsafe.WriteUnaligned(ref destination[3 * sizeof(ulong)], u3);
+
+			bytesWritten = Size;
+			return true;
 		}
 	}
 
@@ -480,33 +663,195 @@ public readonly struct UInt256
 	// IBinaryNumber
 	//
 
+	/// <inheritdoc cref="IBinaryNumber{TSelf}.AllBitsSet"/>
+	static UInt256 IBinaryNumber<UInt256>.AllBitsSet => MaxValue;
+
 	/// <inheritdoc cref="IBinaryNumber{TSelf}.IsPow2(TSelf)"/>
-	public static bool IsPow2(UInt256 value) => PopCount(value) == One;
+	public static bool IsPow2(UInt256 value) => Popcnt(value) == 1;
 
 	/// <inheritdoc cref="IBinaryNumber{TSelf}.Log2(TSelf)"/>
 	public static UInt256 Log2(UInt256 value)
 	{
-		if (value._upper == UInt128.Zero)
-			return UInt128.Log2(value._lower);
+		int v = value switch    // Manual inlining to avoid additional copies
+		{
+			{ U3: not 0 } => 0 * 8 * sizeof(ulong) + BitOperations.Log2(value._u3),
+			{ U2: not 0 } => 1 * 8 * sizeof(ulong) + BitOperations.Log2(value._u2),
+			{ U1: not 0 } => 2 * 8 * sizeof(ulong) + BitOperations.Log2(value._u1),
+			_ => 3 * 8 * sizeof(ulong) + BitOperations.Log2(value._u0),
+		};
 
-		return 128 + UInt128.Log2(value._upper);
+		return Zero with { U0 = (uint)v };
 	}
 
 	//
 	// IBitwiseOperators
 	//
 
+	public static UInt256 And(UInt256 left, UInt256 right) => left & right;
+
 	/// <inheritdoc cref="IBitwiseOperators{TSelf, TOther, TResult}.op_BitwiseAnd(TSelf, TOther)" />
-	public static UInt256 operator &(UInt256 left, UInt256 right) => new UInt256(left._upper & right._upper, left._lower & right._lower);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	[SkipLocalsInit]
+	public unsafe static UInt256 operator &(UInt256 left, UInt256 right)
+	{
+		Unsafe.SkipInit(out MutableUInt256 mut);
+
+		if (Vector256.IsHardwareAccelerated)
+		{
+			Vector256<ulong> l = Vector256.Load((ulong*)&left);
+
+			Vector256<ulong> o = l & Vector256.Load((ulong*)&right);
+
+			o.Store((ulong*)&mut);
+
+			return mut._value;
+		}
+		else if (Vector128.IsHardwareAccelerated)
+		{
+			Vector128<ulong> ll = Vector128.Load(&left._u0);
+			Vector128<ulong> lu = Vector128.Load(&left._u2);
+
+			Vector128<ulong> ol = ll & Vector128.Load(&right._u0);
+			Vector128<ulong> ou = lu & Vector128.Load(&right._u2);
+
+			ol.Store((ulong*)&mut + 0);
+			ou.Store((ulong*)&mut + 2);
+
+			return mut._value;
+		}
+		else
+		{
+
+			mut._u0 = left._u0 & right._u0;
+			mut._u1 = left._u1 & right._u1;
+			mut._u2 = left._u2 & right._u2;
+			mut._u3 = left._u3 & right._u3;
+
+			return mut._value;
+		}
+	}
 
 	/// <inheritdoc cref="IBitwiseOperators{TSelf, TOther, TResult}.op_BitwiseOr(TSelf, TOther)" />
-	public static UInt256 operator |(UInt256 left, UInt256 right) => new UInt256(left._upper | right._upper, left._lower | right._lower);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	[SkipLocalsInit]
+	public unsafe static UInt256 operator |(UInt256 left, UInt256 right)
+	{
+		Unsafe.SkipInit(out MutableUInt256 mut);
+
+		if (Vector256.IsHardwareAccelerated)
+		{
+			Vector256<ulong> l = Vector256.Load((ulong*)&left);
+			Vector256<ulong> o = l | Vector256.Load((ulong*)&right);
+
+			o.Store((ulong*)&mut);
+
+			return mut._value;
+		}
+		else if (Vector128.IsHardwareAccelerated)
+		{
+
+			Vector128<ulong> ll = Vector128.Load(&left._u0);
+			Vector128<ulong> lu = Vector128.Load(&left._u2);
+
+			Vector128<ulong> ol = ll | Vector128.Load(&right._u0);
+			Vector128<ulong> ou = lu | Vector128.Load(&right._u2);
+
+			ol.Store((ulong*)&mut + 0);
+			ou.Store((ulong*)&mut + 2);
+
+			return mut._value;
+		}
+		else
+		{
+			mut._u0 = left._u0 | right._u0;
+			mut._u1 = left._u1 | right._u1;
+			mut._u2 = left._u2 | right._u2;
+			mut._u3 = left._u3 | right._u3;
+
+			return mut._value;
+		}
+	}
 
 	/// <inheritdoc cref="IBitwiseOperators{TSelf, TOther, TResult}.op_ExclusiveOr(TSelf, TOther)" />
-	public static UInt256 operator ^(UInt256 left, UInt256 right) => new UInt256(left._upper ^ right._upper, left._lower ^ right._lower);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	[SkipLocalsInit]
+	public unsafe static UInt256 operator ^(UInt256 left, UInt256 right)
+	{
+		Unsafe.SkipInit(out MutableUInt256 mut);
+
+		if (Vector256.IsHardwareAccelerated)
+		{
+			Vector256<ulong> l = Vector256.Load((ulong*)&left);
+
+			Vector256<ulong> o = l ^ Vector256.Load((ulong*)&right);
+
+			o.Store((ulong*)&mut);
+
+			return mut._value;
+		}
+		else if (Vector128.IsHardwareAccelerated)
+		{
+
+			Vector128<ulong> ll = Vector128.Load(&left._u0);
+			Vector128<ulong> lu = Vector128.Load(&left._u2);
+
+			Vector128<ulong> ol = ll ^ Vector128.Load(&right._u0);
+			Vector128<ulong> ou = lu ^ Vector128.Load(&right._u2);
+
+			ol.Store((ulong*)&mut + 0);
+			ou.Store((ulong*)&mut + 2);
+
+			return mut._value;
+		}
+		else
+		{
+			mut._u0 = left._u0 ^ right._u0;
+			mut._u1 = left._u1 ^ right._u1;
+			mut._u2 = left._u2 ^ right._u2;
+			mut._u3 = left._u3 ^ right._u3;
+
+			return mut._value;
+		}
+	}
 
 	/// <inheritdoc cref="IBitwiseOperators{TSelf, TOther, TResult}.op_OnesComplement(TSelf)" />
-	public static UInt256 operator ~(UInt256 value) => new UInt256(~value._upper, ~value._lower);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	[SkipLocalsInit]
+	public unsafe static UInt256 operator ~(UInt256 value)
+	{
+		Unsafe.SkipInit(out MutableUInt256 mut);
+
+		if (Vector256.IsHardwareAccelerated)
+		{
+			Vector256<ulong> v = Vector256.Load((ulong*)&value);
+			Vector256<ulong> o = ~v;
+
+			o.Store((ulong*)&mut);
+			return mut._value;
+		}
+		else if (Vector128.IsHardwareAccelerated)
+		{
+			Vector128<ulong> vl = Vector128.Load(&value._u0);
+			Vector128<ulong> vu = Vector128.Load(&value._u2);
+
+			Vector128<ulong> ol = ~vl;
+			Vector128<ulong> ou = ~vu;
+
+			ol.Store((ulong*)&mut._value + 0);
+			ou.Store((ulong*)&mut._value + 2);
+
+			return mut._value;
+		}
+		else
+		{
+			mut._u0 = ~value._u0;
+			mut._u1 = ~value._u1;
+			mut._u2 = ~value._u2;
+			mut._u3 = ~value._u3;
+
+			return mut._value;
+		}
+	}
 
 	//
 	// IComparisonOperators
@@ -515,29 +860,77 @@ public readonly struct UInt256
 	/// <inheritdoc cref="IComparisonOperators{TSelf, TOther}.op_LessThan(TSelf, TOther)" />
 	public static bool operator <(UInt256 left, UInt256 right)
 	{
-		return (left._upper < right._upper)
-			|| ((left._upper == right._upper) && (left._lower < right._lower));
+		if (left._u3 == right._u3)
+		{
+			if (left._u2 == right._u2)
+			{
+				if (left._u1 == right._u1)
+					return left._u0 < right._u0;
+				else
+					return left._u1 < right._u1;
+			}
+			else
+				return left._u2 < right._u2;
+		}
+		else
+			return left._u3 < right._u3;
 	}
 
 	/// <inheritdoc cref="IComparisonOperators{TSelf, TOther}.op_LessThanOrEqual(TSelf, TOther)" />
 	public static bool operator <=(UInt256 left, UInt256 right)
 	{
-		return (left._upper < right._upper)
-			|| ((left._upper == right._upper) && (left._lower <= right._lower));
+		if (left._u3 == right._u3)
+		{
+			if (left._u2 == right._u2)
+			{
+				if (left._u1 == right._u1)
+					return left._u0 <= right._u0;
+				else
+					return left._u1 <= right._u1;
+			}
+			else
+				return left._u2 <= right._u2;
+		}
+		else
+			return left._u3 <= right._u3;
 	}
 
 	/// <inheritdoc cref="IComparisonOperators{TSelf, TOther}.op_GreaterThan(TSelf, TOther)" />
 	public static bool operator >(UInt256 left, UInt256 right)
 	{
-		return (left._upper > right._upper)
-			|| ((left._upper == right._upper) && (left._lower > right._lower));
+		if (left._u3 == right._u3)
+		{
+			if (left._u2 == right._u2)
+			{
+				if (left._u1 == right._u1)
+					return left._u0 > right._u0;
+				else
+					return left._u1 > right._u1;
+			}
+			else
+				return left._u2 > right._u2;
+		}
+		else
+			return left._u3 > right._u3;
 	}
 
 	/// <inheritdoc cref="IComparisonOperators{TSelf, TOther}.op_GreaterThanOrEqual(TSelf, TOther)" />
 	public static bool operator >=(UInt256 left, UInt256 right)
 	{
-		return (left._upper > right._upper)
-			|| ((left._upper == right._upper) && (left._lower >= right._lower));
+		if (left._u3 == right._u3)
+		{
+			if (left._u2 == right._u2)
+			{
+				if (left._u1 == right._u1)
+					return left._u0 >= right._u0;
+				else
+					return left._u1 >= right._u1;
+			}
+			else
+				return left._u2 >= right._u2;
+		}
+		else
+			return left._u3 >= right._u3;
 	}
 
 	//
@@ -545,28 +938,67 @@ public readonly struct UInt256
 	//
 
 	/// <inheritdoc cref="IDecrementOperators{TSelf}.op_Decrement(TSelf)" />
-	public static UInt256 operator --(UInt256 value) => value - One;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	[SkipLocalsInit]
+	public static unsafe UInt256 operator --(UInt256 value)
+	{
+		Unsafe.SkipInit(out MutableUInt256 o);
+		o._value = value;
+
+		o._u0--;
+		if (o._u0 == ulong.MaxValue)
+		{
+			o._u1--;
+			if (o._u1 == ulong.MaxValue)
+			{
+				o._u2--;
+				if (o._u2 == ulong.MaxValue)
+					o._u3--;
+			}
+		}
+
+		return o._value;
+	}
 
 	/// <inheritdoc cref="IDecrementOperators{TSelf}.op_Decrement(TSelf)" />
-	public static UInt256 operator checked --(UInt256 value) => checked(value - One);
+	[SkipLocalsInit]
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe UInt256 operator checked --(UInt256 value)
+	{
+		Unsafe.SkipInit(out MutableUInt256 o);
+		o._value = value;
+
+		o._u0--;
+		if (o._u0 == ulong.MaxValue)
+		{
+			o._u1--;
+			if (o._u1 == ulong.MaxValue)
+			{
+				o._u2--;
+				if (o._u2 == ulong.MaxValue)
+					_ = checked(o._u3--);
+			}
+		}
+
+		return o._value;
+	}
 
 	//
 	// IDivisionOperators
 	//
 
 	/// <inheritdoc cref="IDivisionOperators{TSelf, TOther, TResult}.op_Division(TSelf, TOther)" />
+	[SkipLocalsInit]
 	public static UInt256 operator /(UInt256 left, UInt256 right)
 	{
-		if ((right._upper == UInt128.Zero) && (left._upper == UInt128.Zero))
+		if (right._u3 == 0 && left._u3 == 0 && right._u2 == 0 && left._u2 == 0 && right._u1 == 0 && left._u1 == 0)
 		{
 			// left and right are both uint64
-			return left._lower / right._lower;
+			return left._u0 / right._u0;
 		}
 
 		if (right >= left)
-		{
-			return (right == left) ? One : Zero;
-		}
+			return (right == left) ? 1U : 0U;
 
 		return DivideSlow(left, right);
 
@@ -590,7 +1022,7 @@ public readonly struct UInt256
 			return (uint)carry;
 		}
 
-		static bool DivideGuessTooBig(UInt128 q, UInt128 valHi, ulong valLo, ulong divHi, ulong divLo)
+		static bool DivideGuessTooBig(ulong q, ulong valHi, uint valLo, uint divHi, uint divLo)
 		{
 			Debug.Assert(q <= 0xFFFFFFFF);
 
@@ -599,23 +1031,22 @@ public readonly struct UInt256
 			// than the three most significant limbs of the current dividend
 			// we return true, which means the current guess is still too big.
 
-			UInt128 chkHi = divHi * q;
-			UInt128 chkLo = divLo * q;
+			ulong chkHi = divHi * q;
+			ulong chkLo = divLo * q;
 
-			chkHi += (chkLo >> 64);
-			chkLo = (ulong)(chkLo);
+			chkHi += (chkLo >> 32);
+			chkLo = (uint)(chkLo);
 
 			return (chkHi > valHi) || ((chkHi == valHi) && (chkLo > valLo));
 		}
 
 		unsafe static UInt256 DivideSlow(UInt256 quotient, UInt256 divisor)
 		{
-#pragma warning disable IDE0056
 			// This is the same algorithm currently used by BigInteger so
 			// we need to get a Span<uint> containing the value represented
 			// in the least number of elements possible.
 
-			// We need to ensure that we end up with 8x uints representing the bits from
+			// We need to ensure that we end up with 4x uints representing the bits from
 			// least significant to most significant so the math will be correct on both
 			// little and big endian systems. So we'll just allocate the relevant buffer
 			// space and then write out the four parts using the native endianness of the
@@ -623,37 +1054,41 @@ public readonly struct UInt256
 
 			uint* pLeft = stackalloc uint[Size / sizeof(uint)];
 
-			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 0), (uint)(quotient._lower >> 00));
-			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 1), (uint)(quotient._lower >> 32));
-			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 2), (uint)(quotient._lower >> 64));
-			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 3), (uint)(quotient._lower >> 96));
+			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 0), (uint)(quotient._u0 >> 00));
+			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 1), (uint)(quotient._u0 >> 32));
 
-			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 4), (uint)(quotient._upper >> 00));
-			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 5), (uint)(quotient._upper >> 32));
-			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 6), (uint)(quotient._upper >> 64));
-			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 7), (uint)(quotient._upper >> 96));
+			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 2), (uint)(quotient._u1 >> 00));
+			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 3), (uint)(quotient._u1 >> 32));
 
-			Span<uint> left = new Span<uint>(pLeft, (Size / sizeof(uint)) - ((int)LeadingZeroCount(quotient) / 32));
+			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 4), (uint)(quotient._u2 >> 00));
+			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 5), (uint)(quotient._u2 >> 32));
+
+			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 6), (uint)(quotient._u3 >> 00));
+			Unsafe.WriteUnaligned(ref *(byte*)(pLeft + 7), (uint)(quotient._u3 >> 32));
+
+			Span<uint> left = new Span<uint>(pLeft, (Size / sizeof(uint)) - (Lzcnt(quotient) / 32));
 
 			// Repeat the same operation with the divisor
 
 			uint* pRight = stackalloc uint[Size / sizeof(uint)];
 
-			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 0), (uint)(divisor._lower >> 00));
-			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 1), (uint)(divisor._lower >> 32));
-			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 2), (uint)(divisor._lower >> 64));
-			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 3), (uint)(divisor._lower >> 96));
+			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 0), (uint)(divisor._u0 >> 00));
+			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 1), (uint)(divisor._u0 >> 32));
 
-			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 4), (uint)(divisor._upper >> 00));
-			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 5), (uint)(divisor._upper >> 32));
-			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 6), (uint)(divisor._upper >> 64));
-			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 7), (uint)(divisor._upper >> 96));
+			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 2), (uint)(divisor._u1 >> 00));
+			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 3), (uint)(divisor._u1 >> 32));
 
-			Span<uint> right = new Span<uint>(pLeft, (Size / sizeof(uint)) - ((int)LeadingZeroCount(divisor) / 32));
+			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 4), (uint)(divisor._u2 >> 00));
+			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 5), (uint)(divisor._u2 >> 32));
+
+			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 6), (uint)(divisor._u3 >> 00));
+			Unsafe.WriteUnaligned(ref *(byte*)(pRight + 7), (uint)(divisor._u3 >> 32));
+
+			Span<uint> right = new Span<uint>(pRight, (Size / sizeof(uint)) - (Lzcnt(divisor) / 32));
 
 			Span<uint> rawBits = stackalloc uint[Size / sizeof(uint)];
 			rawBits.Clear();
-			Span<uint> bits = rawBits[..(left.Length - right.Length + 1)];
+			Span<uint> bits = rawBits.Slice(0, left.Length - right.Length + 1);
 
 			Debug.Assert(left.Length >= 1);
 			Debug.Assert(right.Length >= 1);
@@ -717,14 +1152,14 @@ public readonly struct UInt256
 				if (digit > 0)
 				{
 					// Now it's time to subtract our current quotient
-					uint carry = SubtractDivisor(left[n..], right, digit);
+					uint carry = SubtractDivisor(left.Slice(n), right, digit);
 
 					if (carry != t)
 					{
 						Debug.Assert(carry == (t + 1));
 
 						// Our guess was still exactly one too high
-						carry = AddDivisor(left[n..], right);
+						carry = AddDivisor(left.Slice(n), right);
 
 						--digit;
 						Debug.Assert(carry == 1);
@@ -743,12 +1178,12 @@ public readonly struct UInt256
 				}
 			}
 
-			ulong u0 = ((ulong)(rawBits[1]) << 32) | rawBits[0];
-			ulong u1 = ((ulong)(rawBits[3]) << 32) | rawBits[2];
-			ulong u2 = ((ulong)(rawBits[5]) << 32) | rawBits[4];
-			ulong u3 = ((ulong)(rawBits[7]) << 32) | rawBits[6];
-
-			return new UInt256(u3, u2, u1, u0);
+			return new UInt256(
+				((ulong)(rawBits[7]) << 32) | rawBits[6],
+				((ulong)(rawBits[5]) << 32) | rawBits[4],
+				((ulong)(rawBits[3]) << 32) | rawBits[2],
+				((ulong)(rawBits[1]) << 32) | rawBits[0]
+			);
 		}
 
 		static uint SubtractDivisor(Span<uint> left, ReadOnlySpan<uint> right, ulong q)
@@ -771,14 +1206,14 @@ public readonly struct UInt256
 				ref uint leftElement = ref left[i];
 
 				if (leftElement < digit)
+				{
 					++carry;
-
+				}
 				leftElement -= digit;
 			}
 
 			return (uint)(carry);
 		}
-#pragma warning restore IDE0056
 	}
 
 	/// <inheritdoc cref="IDivisionOperators{TSelf, TOther, TResult}.op_CheckedDivision(TSelf, TOther)" />
@@ -789,40 +1224,190 @@ public readonly struct UInt256
 	//
 
 	/// <inheritdoc cref="IEqualityOperators{TSelf, TOther}.op_Equality(TSelf, TOther)"/>
-	public static bool operator ==(UInt256 left, UInt256 right) => left._upper == right._upper && left._lower == right._lower;
+	[SkipLocalsInit]
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe bool operator ==(UInt256 left, UInt256 right)
+	{
+		if (Vector256.IsHardwareAccelerated)
+		{
+			Vector256<ulong> l = Vector256.Load((ulong*)&left);
+			Vector256<ulong> r = Vector256.Load((ulong*)&right);
+
+			return l == r;
+		}
+		else
+			return left._u0 == right._u0 && left._u1 == right._u1 && left._u2 == right._u2 && left._u3 == right._u3;
+	}
 
 	/// <inheritdoc cref="IEqualityOperators{TSelf, TOther}.op_Inequality(TSelf, TOther)"/>
-	public static bool operator !=(UInt256 left, UInt256 right) => left._upper != right._lower || left._lower != right._lower;
+	public static unsafe bool operator !=(UInt256 left, UInt256 right)
+	{
+		if (!Vector256.IsHardwareAccelerated)
+		{
+			Vector256<ulong> l = Vector256.Load((ulong*)&left);
+			Vector256<ulong> r = Vector256.Load((ulong*)&right);
+
+			return l != r;
+		}
+		else
+			return left._u0 != right._u0 || left._u1 != right._u1 || left._u2 != right._u2 || left._u3 != right._u3;
+	}
 
 	//
 	// IIncrementOperators
 	//
 
 	/// <inheritdoc cref="IIncrementOperators{TSelf}.op_Increment(TSelf)" />
-	public static UInt256 operator ++(UInt256 value) => value + One;
+	[SkipLocalsInit]
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe UInt256 operator ++(UInt256 value)
+	{
+		Unsafe.SkipInit(out MutableUInt256 o);
+		o._value = value;
+
+		o._u0++;
+		if (o._u0 == 0)
+		{
+			o._u1++;
+			if (o._u1 == 0)
+			{
+				o._u2++;
+				if (o._u2 == 0)
+					o._u3++;
+			}
+		}
+
+		return o._value;
+	}
 
 	/// <inheritdoc cref="IIncrementOperators{TSelf}.op_CheckedIncrement(TSelf)" />
-	public static UInt256 operator checked ++(UInt256 value) => checked(value + One);
+	[SkipLocalsInit]
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static UInt256 operator checked ++(UInt256 value)
+	{
+		Unsafe.SkipInit(out MutableUInt256 o);
+		o._value = value;
+
+		o._u0++;
+		if (o._u0 == 0)
+		{
+			o._u1++;
+			if (o._u1 == 0)
+			{
+				o._u2++;
+				if (o._u2 == 0)
+					_ = checked(o._u3++);
+			}
+		}
+
+		return o._value;
+	}
 
 	//
 	// IMinMaxValue
 	//
 
 	/// <inheritdoc cref="IMinMaxValue{TSelf}.MinValue"/>
-	public static UInt256 MinValue => new UInt256(UInt128.Zero, UInt128.Zero);
+	public static UInt256 MinValue => default;
+
+	public static UInt256 M() => MaxValue;
 
 	/// <inheritdoc cref="IMinMaxValue{TSelf}.MaxValue"/>
-	public static UInt256 MaxValue => new UInt256(UInt128.MaxValue, UInt128.MaxValue);
+	public unsafe static UInt256 MaxValue
+	{
+		[SkipLocalsInit]
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get
+		{
+			if (Vector256.IsHardwareAccelerated)
+			{
+				Unsafe.SkipInit(out UInt256 o);
+				Vector256<ulong>.AllBitsSet.Store((ulong*)&o);
+
+				return o;
+			}
+			else if (Vector128.IsHardwareAccelerated)
+			{
+				Unsafe.SkipInit(out UInt256 o);
+
+				Vector128<ulong>.AllBitsSet.Store((ulong*)&o + 0);
+				Vector128<ulong>.AllBitsSet.Store((ulong*)&o + 2);
+
+				return o;
+			}
+			else
+				return new UInt256(ulong.MaxValue, ulong.MaxValue, ulong.MaxValue, ulong.MaxValue);
+		}
+	}
 
 	//
 	// IModulusOperators
 	//
 
 	/// <inheritdoc cref="IModulusOperators{TSelf, TOther, TResult}.op_Modulus(TSelf, TOther)" />
+	[SkipLocalsInit]
 	public static UInt256 operator %(UInt256 left, UInt256 right)
 	{
-		UInt256 quotient = left / right;
-		return left - (quotient * right);
+		if (right._u3 == 0 && left._u3 == 0 && right._u2 == 0 && left._u2 == 0 && right._u1 == 0 && left._u1 == 0)
+		{
+			// left and right are both uint64
+			return left._u0 % right._u0;
+		}
+
+		if (right >= left)
+			return (right == left) ? Zero : left;
+
+		return ModSlow(left, right);
+	}
+
+	[SkipLocalsInit]
+	static unsafe UInt256 ModSlow(UInt256 quotient, UInt256 divisor)
+	{
+		uint* pLeft = stackalloc uint[sizeof(UInt256) / sizeof(uint)];
+
+		if (BitConverter.IsLittleEndian)
+			Unsafe.Write(pLeft, quotient);
+		else
+		{
+			*(pLeft + 0) = (uint)(quotient._u0 >> 00);
+			*(pLeft + 1) = (uint)(quotient._u0 >> 32);
+			*(pLeft + 2) = (uint)(quotient._u1 >> 00);
+			*(pLeft + 3) = (uint)(quotient._u1 >> 32);
+			*(pLeft + 4) = (uint)(quotient._u2 >> 00);
+			*(pLeft + 5) = (uint)(quotient._u2 >> 32);
+			*(pLeft + 6) = (uint)(quotient._u3 >> 00);
+			*(pLeft + 7) = (uint)(quotient._u3 >> 32);
+		}
+
+		Span<uint> left = new Span<uint>(pLeft, 8 - (Lzcnt(quotient) / 32));
+
+		// Setup buffer for right UInt256
+		uint* pRight = stackalloc uint[sizeof(UInt256) / sizeof(uint)];
+
+		if (BitConverter.IsLittleEndian)
+			Unsafe.Write(pRight, divisor);
+		else
+		{
+			*(pRight + 0) = (uint)(divisor._u0 >> 00);
+			*(pRight + 1) = (uint)(divisor._u0 >> 32);
+			*(pRight + 2) = (uint)(divisor._u1 >> 00);
+			*(pRight + 3) = (uint)(divisor._u1 >> 32);
+			*(pRight + 4) = (uint)(divisor._u2 >> 00);
+			*(pRight + 5) = (uint)(divisor._u2 >> 32);
+			*(pRight + 6) = (uint)(divisor._u3 >> 00);
+			*(pRight + 7) = (uint)(divisor._u3 >> 32);
+		}
+
+		Span<uint> right = new Span<uint>(pRight, 8 - (Lzcnt(divisor) / 32));
+
+		BigIntegerCalculator.Divide(left, right, default);
+
+		return new UInt256(
+			(ulong)(left[7] << 32) | left[6],
+			(ulong)(left[5] << 32) | left[4],
+			(ulong)(left[3] << 32) | left[2],
+			(ulong)(left[1] << 32) | left[0]
+		);
 	}
 
 	//
@@ -834,12 +1419,14 @@ public readonly struct UInt256
 
 	//
 	// IMultiplyOperators
+	//
 
 	/// <inheritdoc cref="IMultiplyOperators{TSelf, TOther, TResult}.op_Multiply(TSelf, TOther)" />
 	public static UInt256 operator *(UInt256 left, UInt256 right)
 	{
 		UInt128 upper = BigMul(left._lower, right._lower, out UInt128 lower);
 		upper += (left._upper * right._lower) + (left._lower * right._upper);
+		
 		return new UInt256(upper, lower);
 	}
 
@@ -1112,23 +1699,93 @@ public readonly struct UInt256
 	//
 
 	/// <inheritdoc cref="ISubtractionOperators{TSelf, TOther, TResult}.op_Subtraction(TSelf, TOther)"/>
-	public static UInt256 operator -(UInt256 left, UInt256 right)
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	[SkipLocalsInit]
+	public static unsafe UInt256 operator -(UInt256 left, UInt256 right)
 	{
-		UInt128 lower = left._lower - right._lower;
-		UInt128 borrow = (lower > left._lower) ? UInt128.One : UInt128.Zero;
+		Unsafe.SkipInit(out MutableUInt256 mut);
 
-		UInt128 upper = left._upper - right._upper - borrow;
-		return new UInt256(upper, lower);
+		if (Vector256.IsHardwareAccelerated)
+		{
+			Vector256<ulong> l = Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left));
+			Vector256<ulong> o = l - Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right));
+
+			o.Store((ulong*)&mut);
+		}
+		else if (Vector128.IsHardwareAccelerated)
+		{
+			Vector128<ulong> ll = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 0);
+			Vector128<ulong> lu = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 2);
+
+			Vector128<ulong> rl = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 0);
+			Vector128<ulong> ru = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 2);
+
+			Vector128<ulong> ol = ll - rl;
+			Vector128<ulong> ou = lu - ru;
+
+			ol.Store((ulong*)&mut);
+			ou.Store((ulong*)&mut + 2);
+		}
+		else
+		{
+			mut._u0 = left._u0 - right._u0;
+			mut._u1 = left._u1 - right._u1;
+			mut._u2 = left._u2 - right._u2;
+			mut._u3 = left._u3 - right._u3;
+		}
+
+		if (mut._u0 > right._u0)
+			mut._u1--;
+		if (mut._u1 > right._u1)
+			mut._u2--;
+		if (mut._u2 > right._u2)
+			mut._u3--;
+
+		return mut._value;
 	}
 
 	/// <inheritdoc cref="ISubtractionOperators{TSelf, TOther, TResult}.op_CheckedSubtraction(TSelf, TOther)"/>
-	public static UInt256 operator checked -(UInt256 left, UInt256 right)
+	public unsafe static UInt256 operator checked -(UInt256 left, UInt256 right)
 	{
-		UInt128 lower = left._lower - right._lower;
-		UInt128 borrow = (lower > left._lower) ? UInt128.One : UInt128.Zero;
+		Unsafe.SkipInit(out MutableUInt256 mut);
 
-		UInt128 upper = checked(left._upper - right._upper - borrow);
-		return new UInt256(upper, lower);
+		if (Vector256.IsHardwareAccelerated)
+		{
+			Vector256<ulong> l = Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left));
+			Vector256<ulong> o = l - Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right));
+
+			o.Store((ulong*)&mut);
+		}
+		else if (Vector128.IsHardwareAccelerated)
+		{
+			Vector128<ulong> ll = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 0);
+			Vector128<ulong> lu = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 2);
+
+			Vector128<ulong> rl = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 0);
+			Vector128<ulong> ru = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 2);
+
+			Vector128<ulong> ol = ll - rl;
+			Vector128<ulong> ou = lu - ru;
+
+			ol.Store((ulong*)&mut);
+			ou.Store((ulong*)&mut + 2);
+		}
+		else
+		{
+			mut._u0 = left._u0 - right._u0;
+			mut._u1 = left._u1 - right._u1;
+			mut._u2 = left._u2 - right._u2;
+			mut._u3 = left._u3 - right._u3;
+		}
+
+		if (mut._u0 > right._u0)
+			mut._u1--;
+		if (mut._u1 > right._u1)
+			mut._u2--;
+		if (mut._u2 > right._u2)
+			_ = checked(mut._u3--);
+
+		return mut._value;
 	}
 
 	//
@@ -1136,10 +1793,87 @@ public readonly struct UInt256
 	//
 
 	/// <inheritdoc cref="IUnaryNegationOperators{TSelf, TResult}.op_UnaryNegation(TSelf)" />
-	public static UInt256 operator -(UInt256 value) => Zero - value;
+	
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	[SkipLocalsInit]
+	public static unsafe UInt256 operator -(UInt256 value)
+	{
+		Unsafe.SkipInit(out MutableUInt256 mut);
+
+		if (Vector256.IsHardwareAccelerated)
+		{
+			Vector256<ulong> o = Vector256<ulong>.Zero - Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref value));
+
+			o.Store((ulong*)&mut);
+		}
+		else if (Vector128.IsHardwareAccelerated)
+		{
+			Vector128<ulong> rl = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref value), 0);
+			Vector128<ulong> ru = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref value), 2);
+
+			Vector128<ulong> ol = Vector128<ulong>.Zero - rl;
+			Vector128<ulong> ou = Vector128<ulong>.Zero - ru;
+
+			ol.Store((ulong*)&mut);
+			ou.Store((ulong*)&mut + 2);
+		}
+		else
+		{
+			mut._u0 = 0 - value._u0;
+			mut._u1 = 0 - value._u1;
+			mut._u2 = 0 - value._u2;
+			mut._u3 = 0 - value._u3;
+		}
+
+		if (mut._u0 > value._u0)
+			mut._u1--;
+		if (mut._u1 > value._u1)
+			mut._u2--;
+		if (mut._u2 > value._u2)
+			mut._u3--;
+
+		return mut._value;
+	}
 
 	/// <inheritdoc cref="IUnaryNegationOperators{TSelf, TResult}.op_CheckedUnaryNegation(TSelf)" />
-	public static UInt256 operator checked -(UInt256 value) => checked(Zero - value);
+	public unsafe static UInt256 operator checked -(UInt256 value)
+	{
+		Unsafe.SkipInit(out MutableUInt256 mut);
+
+		if (Vector256.IsHardwareAccelerated)
+		{
+			Vector256<ulong> o = Vector256<ulong>.Zero - Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref value));
+
+			o.Store((ulong*)&mut);
+		}
+		else if (Vector128.IsHardwareAccelerated)
+		{
+			Vector128<ulong> rl = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref value), 0);
+			Vector128<ulong> ru = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref value), 2);
+
+			Vector128<ulong> ol = Vector128<ulong>.Zero - rl;
+			Vector128<ulong> ou = Vector128<ulong>.Zero - ru;
+
+			ol.Store((ulong*)&mut);
+			ou.Store((ulong*)&mut + 2);
+		}
+		else
+		{
+			mut._u0 = 0 - value._u0;
+			mut._u1 = 0 - value._u1;
+			mut._u2 = 0 - value._u2;
+			mut._u3 = 0 - value._u3;
+		}
+
+		if (mut._u0 > value._u0)
+			mut._u1--;
+		if (mut._u1 > value._u1)
+			mut._u2--;
+		if (mut._u2 > value._u2)
+			_ = checked(mut._u3--);
+
+		return mut._value;
+	}
 
 	//
 	// IUnaryPlusOperators
