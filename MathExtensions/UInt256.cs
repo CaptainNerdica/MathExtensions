@@ -375,25 +375,21 @@ public readonly struct UInt256
 
 		if (Vector256.IsHardwareAccelerated)
 		{
-			Vector256<ulong> l = Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left));
-			Vector256<ulong> r = Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right));
+			Vector256<ulong> l = Vector256.LoadUnsafe(ref Unsafe.AsRef(in left._u0));
+			Vector256<ulong> o = l + Vector256.LoadUnsafe(ref Unsafe.AsRef(in right._u0));
 
-			Vector256<ulong> o = l + r;
-			o.Store((ulong*)&mut);
+			o.StoreUnsafe(ref mut._u0);
 		}
 		else if (Vector128.IsHardwareAccelerated)
 		{
-			Vector128<ulong> ll = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 0);
-			Vector128<ulong> lu = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 2);
+			Vector128<ulong> ll = Vector128.LoadUnsafe(ref Unsafe.AsRef(in left._u0));
+			Vector128<ulong> lu = Vector128.LoadUnsafe(ref Unsafe.AsRef(in left._u2));
 
-			Vector128<ulong> rl = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 0);
-			Vector128<ulong> ru = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 2);
+			Vector128<ulong> ol = ll + Vector128.LoadUnsafe(ref Unsafe.AsRef(in right._u0));
+			Vector128<ulong> ou = lu + Vector128.LoadUnsafe(ref Unsafe.AsRef(in right._u2));
 
-			Vector128<ulong> ol = ll + rl;
-			Vector128<ulong> ou = lu + ru;
-
-			ol.Store((ulong*)&mut);
-			ou.Store((ulong*)&mut + 2);
+			ol.StoreUnsafe(ref mut._u0);
+			ou.StoreUnsafe(ref mut._u2);
 		}
 		else
 		{
@@ -413,8 +409,6 @@ public readonly struct UInt256
 		return mut._value;
 	}
 
-	public static UInt256 Add(UInt256 left, UInt256 right) => checked(left + right);
-
 	/// <inheritdoc cref="IAdditionOperators{TSelf, TOther, TResult}.op_CheckedAddition(TSelf, TOther)" />
 	public static unsafe UInt256 operator checked +(UInt256 left, UInt256 right)
 	{
@@ -422,25 +416,21 @@ public readonly struct UInt256
 
 		if (Vector256.IsHardwareAccelerated)
 		{
-			Vector256<ulong> l = Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left));
-			Vector256<ulong> r = Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right));
+			Vector256<ulong> l = Vector256.LoadUnsafe(ref Unsafe.AsRef(in left._u0));
+			Vector256<ulong> o = l + Vector256.LoadUnsafe(ref Unsafe.AsRef(in right._u0));
 
-			Vector256<ulong> o = l + r;
-			o.Store((ulong*)&mut);
+			o.StoreUnsafe(ref mut._u0);
 		}
 		else if (Vector128.IsHardwareAccelerated)
 		{
-			Vector128<ulong> ll = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 0);
-			Vector128<ulong> lu = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 2);
+			Vector128<ulong> ll = Vector128.LoadUnsafe(ref Unsafe.AsRef(in left._u0));
+			Vector128<ulong> lu = Vector128.LoadUnsafe(ref Unsafe.AsRef(in left._u2));
 
-			Vector128<ulong> rl = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 0);
-			Vector128<ulong> ru = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 2);
+			Vector128<ulong> ol = ll + Vector128.LoadUnsafe(ref Unsafe.AsRef(in right._u0));
+			Vector128<ulong> ou = lu + Vector128.LoadUnsafe(ref Unsafe.AsRef(in right._u2));
 
-			Vector128<ulong> ol = ll + rl;
-			Vector128<ulong> ou = lu + ru;
-
-			ol.Store((ulong*)&mut);
-			ou.Store((ulong*)&mut + 2);
+			ol.StoreUnsafe(ref mut._u0);
+			ou.StoreUnsafe(ref mut._u2);
 		}
 		else
 		{
@@ -1209,6 +1199,7 @@ public readonly struct UInt256
 				{
 					++carry;
 				}
+
 				leftElement -= digit;
 			}
 
@@ -1707,24 +1698,21 @@ public readonly struct UInt256
 
 		if (Vector256.IsHardwareAccelerated)
 		{
-			Vector256<ulong> l = Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left));
-			Vector256<ulong> o = l - Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right));
+			Vector256<ulong> l = Vector256.LoadUnsafe(ref Unsafe.AsRef(in left._u0));
+			Vector256<ulong> o = l - Vector256.LoadUnsafe(ref Unsafe.AsRef(in right._u0));
 
 			o.Store((ulong*)&mut);
 		}
 		else if (Vector128.IsHardwareAccelerated)
 		{
-			Vector128<ulong> ll = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 0);
-			Vector128<ulong> lu = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 2);
+			Vector128<ulong> ll = Vector128.LoadUnsafe(ref Unsafe.AsRef(in left._u0));
+			Vector128<ulong> lu = Vector128.LoadUnsafe(ref Unsafe.AsRef(in left._u2));
 
-			Vector128<ulong> rl = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 0);
-			Vector128<ulong> ru = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 2);
+			Vector128<ulong> ol = ll - Vector128.LoadUnsafe(ref Unsafe.AsRef(in right._u0));
+			Vector128<ulong> ou = lu - Vector128.LoadUnsafe(ref Unsafe.AsRef(in right._u2));
 
-			Vector128<ulong> ol = ll - rl;
-			Vector128<ulong> ou = lu - ru;
-
-			ol.Store((ulong*)&mut);
-			ou.Store((ulong*)&mut + 2);
+			ol.StoreUnsafe(ref Unsafe.AsRef(in mut._u0));
+			ou.StoreUnsafe(ref Unsafe.AsRef(in mut._u2));
 		}
 		else
 		{
@@ -1751,24 +1739,21 @@ public readonly struct UInt256
 
 		if (Vector256.IsHardwareAccelerated)
 		{
-			Vector256<ulong> l = Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left));
-			Vector256<ulong> o = l - Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right));
+			Vector256<ulong> l = Vector256.LoadUnsafe(ref Unsafe.AsRef(in left._u0));
+			Vector256<ulong> o = l - Vector256.LoadUnsafe(ref Unsafe.AsRef(in right._u0));
 
 			o.Store((ulong*)&mut);
 		}
 		else if (Vector128.IsHardwareAccelerated)
 		{
-			Vector128<ulong> ll = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 0);
-			Vector128<ulong> lu = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref left), 2);
+			Vector128<ulong> ll = Vector128.LoadUnsafe(ref Unsafe.AsRef(in left._u0));
+			Vector128<ulong> lu = Vector128.LoadUnsafe(ref Unsafe.AsRef(in left._u2));
 
-			Vector128<ulong> rl = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 0);
-			Vector128<ulong> ru = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref right), 2);
+			Vector128<ulong> ol = ll - Vector128.LoadUnsafe(ref Unsafe.AsRef(in right._u0));
+			Vector128<ulong> ou = lu - Vector128.LoadUnsafe(ref Unsafe.AsRef(in right._u2));
 
-			Vector128<ulong> ol = ll - rl;
-			Vector128<ulong> ou = lu - ru;
-
-			ol.Store((ulong*)&mut);
-			ou.Store((ulong*)&mut + 2);
+			ol.StoreUnsafe(ref Unsafe.AsRef(in mut._u0));
+			ou.StoreUnsafe(ref Unsafe.AsRef(in mut._u2));
 		}
 		else
 		{
@@ -1802,20 +1787,20 @@ public readonly struct UInt256
 
 		if (Vector256.IsHardwareAccelerated)
 		{
-			Vector256<ulong> o = Vector256<ulong>.Zero - Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref value));
+			Vector256<ulong> o = Vector256<ulong>.Zero - Vector256.LoadUnsafe(ref Unsafe.AsRef(in value._u0));
 
-			o.Store((ulong*)&mut);
+			o.StoreUnsafe(ref Unsafe.AsRef(in mut._u0));
 		}
 		else if (Vector128.IsHardwareAccelerated)
 		{
-			Vector128<ulong> rl = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref value), 0);
-			Vector128<ulong> ru = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref value), 2);
+			Vector128<ulong> rl = Vector128.LoadUnsafe(ref Unsafe.AsRef(in value._u0));
+			Vector128<ulong> ru = Vector128.LoadUnsafe(ref Unsafe.AsRef(in value._u2));
 
 			Vector128<ulong> ol = Vector128<ulong>.Zero - rl;
 			Vector128<ulong> ou = Vector128<ulong>.Zero - ru;
 
-			ol.Store((ulong*)&mut);
-			ou.Store((ulong*)&mut + 2);
+			ol.StoreUnsafe(ref Unsafe.AsRef(in mut._u0));
+			ou.StoreUnsafe(ref Unsafe.AsRef(in mut._u2));
 		}
 		else
 		{
@@ -1842,20 +1827,20 @@ public readonly struct UInt256
 
 		if (Vector256.IsHardwareAccelerated)
 		{
-			Vector256<ulong> o = Vector256<ulong>.Zero - Vector256.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref value));
+			Vector256<ulong> o = Vector256<ulong>.Zero - Vector256.LoadUnsafe(ref Unsafe.AsRef(in value._u0));
 
-			o.Store((ulong*)&mut);
+			o.StoreUnsafe(ref Unsafe.AsRef(in mut._u0));
 		}
 		else if (Vector128.IsHardwareAccelerated)
 		{
-			Vector128<ulong> rl = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref value), 0);
-			Vector128<ulong> ru = Vector128.LoadUnsafe(ref Unsafe.As<UInt256, ulong>(ref value), 2);
+			Vector128<ulong> rl = Vector128.LoadUnsafe(ref Unsafe.AsRef(in value._u0));
+			Vector128<ulong> ru = Vector128.LoadUnsafe(ref Unsafe.AsRef(in value._u2));
 
 			Vector128<ulong> ol = Vector128<ulong>.Zero - rl;
 			Vector128<ulong> ou = Vector128<ulong>.Zero - ru;
 
-			ol.Store((ulong*)&mut);
-			ou.Store((ulong*)&mut + 2);
+			ol.StoreUnsafe(ref Unsafe.AsRef(in mut._u0));
+			ou.StoreUnsafe(ref Unsafe.AsRef(in mut._u2));
 		}
 		else
 		{

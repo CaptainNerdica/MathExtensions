@@ -26,6 +26,12 @@ namespace MathExtensions
 			}
 			return chars.ToString();
 		}
+
+		internal static ulong Lower(this Int128 value) => (ulong)value;
+		internal static ulong Upper(this Int128 value) => (ulong)(value >> 64);
+
+		internal static ulong Lower(this UInt128 value) => (ulong)value;
+		internal static ulong Upper(this UInt128 value) => (ulong)(value >> 64);
 	}
 
 	public static class RandomExtensions
